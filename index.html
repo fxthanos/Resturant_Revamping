@@ -1901,7 +1901,7 @@ function build3D(THREE, OrbitControls, CSS2DRenderer, CSS2DObject) {
       f.position.set(q.x + q.w / 2, zn ? -0.035 : -0.04, q.z + q.d / 2); f.receiveShadow = true; f.userData.pick = { type: 'room', id: r.id }; f.visible = D.showFloors;
       gStruct.add(f); reg.floors.push(f); reg.byKey.set('room:' + r.id, f);
       if (zn) { const an0 = r.anchor || { fx: 0.5, fz: 0.5 }; const lab0 = new CSS2DObject(labelEl(r)); lab0.position.set(q.x + q.w * an0.fx, 0.35, q.z + q.d * an0.fz); lab0.userData.base = D.showRoomLabels && r.showLabel; lab0.visible = lab0.userData.base; gLabels.add(lab0); reg.roomLabels.push({ lab: lab0, id: r.id, size: Math.max(q.w, q.d) }); continue; }
-      const cm = mat('ceiling', D.ceilingColor, { rough: 0.95, opacity: 1 });
+      const cm = mat('ceiling', D.ceilingColor, { rough: 0.95, opacity: 1, side: THREE.DoubleSide });
       const c = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.d), cm); c.rotation.x = Math.PI / 2; c.position.set(q.x + q.w / 2, H, q.z + q.d / 2); c.visible = D.showCeilings; c.receiveShadow = false;
       gStruct.add(c); reg.ceilings.push(c);
       const an = r.anchor || { fx: 0.5, fz: 0.5 }, lab = new CSS2DObject(labelEl(r)); lab.position.set(q.x + q.w * an.fx, 0.35, q.z + q.d * an.fz); lab.userData.base = D.showRoomLabels && r.showLabel; lab.visible = lab.userData.base; gLabels.add(lab); reg.roomLabels.push({ lab, id: r.id, size: Math.max(q.w, q.d) });
