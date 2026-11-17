@@ -1,0 +1,2659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Restaurant Plan Editor — 2D floor plan &amp; 3D model</title>
+<style>
+:root{--ink:#1d2733;--muted:#5d6b7a;--line:#d5dae1;--panel:#f4f6f8;--card:#fff;--top:#16202c;--acc:#0b7285;--acc2:#e8f4f6;--sel:#f08c00;--warn:#c92a2a;--ok:#2b8a3e;--amber:#b35400}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font:13px/1.4 system-ui,-apple-system,"Segoe UI",Tahoma,"Noto Naskh Arabic",sans-serif;color:var(--ink);background:#e9ecef;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+#app{display:flex;flex-direction:column;height:100%;position:relative}
+#topbar{background:var(--top);color:#fff;display:flex;gap:6px;align-items:center;padding:5px 8px;flex-wrap:wrap;z-index:30}
+#topbar .brand{font-weight:700;letter-spacing:.2px;margin-right:6px;white-space:nowrap}
+#topbar .brand small{font-weight:400;opacity:.7;margin-left:6px}
+.grp{display:flex;gap:2px;align-items:center;background:rgba(255,255,255,.07);border-radius:7px;padding:2px}
+button{min-width:24px;min-height:24px}
+:focus-visible{outline:2px solid #f59e0b;outline-offset:2px}
+@media (pointer:coarse),(max-width:700px){button,.tb,.chip,.ic{min-height:36px;min-width:36px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+.tb{background:transparent;border:0;color:#fff;padding:5px 9px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.tb:hover{background:rgba(255,255,255,.16)}
+.tb[disabled]{opacity:.35;cursor:default}
+.tb.on{background:var(--acc);}
+.spacer{flex:1}
+#main{flex:1;display:flex;min-height:0;position:relative}
+aside{background:var(--panel);display:flex;flex-direction:column;min-height:0;border-color:var(--line);border-style:solid;border-width:0}
+#left{width:250px;border-right-width:1px}
+#right{width:330px;border-left-width:1px}
+.tabs{display:flex;background:#e6e9ee;border-bottom:1px solid var(--line);flex-shrink:0}
+.tabs button{flex:1;border:0;background:transparent;padding:7px 4px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:600;font-size:12px}
+.tabs button.on{background:var(--panel);color:var(--ink);border-bottom-color:var(--acc)}
+.tabbody{flex:1;overflow:auto;padding:8px;min-height:0}
+.tabbody>section{display:none}
+.tabbody>section.on{display:block}
+#center{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;background:#dfe3e8}
+#toolbar{display:flex;gap:4px;padding:5px 6px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center}
+#toolbar .tg{display:flex;gap:2px;padding-right:6px;margin-right:2px;border-right:1px solid var(--line)}
+#toolbar .tg:last-child{border-right:0}
+.tool{border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;display:flex;gap:5px;align-items:center;white-space:nowrap}
+.tool:hover{background:var(--acc2)}
+.tool.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tool[disabled]{opacity:.4;cursor:default}
+.tool kbd{font-size:10px;opacity:.65;border:1px solid currentColor;border-radius:3px;padding:0 3px}
+#views{flex:1;display:flex;min-height:0;position:relative}
+#views.stack{flex-direction:column}
+.pane{flex:1;position:relative;min-width:0;min-height:0;overflow:hidden;background:#fbfaf7}
+#views.m-2d #pane3d,#views.m-3d #pane2d{display:none}
+#pane3d{background:#cfd8de;border-left:2px solid #fff}
+#views.stack #pane3d{border-left:0;border-top:2px solid #fff}
+#c2d{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:default}
+#gl{position:absolute;inset:0}
+#gl canvas{display:block;width:100%;height:100%;touch-action:none}
+.overlay{position:absolute;z-index:5;display:flex;gap:4px;flex-wrap:wrap}
+.overlay.tl{top:6px;left:6px}.overlay.tr{top:6px;right:6px}.overlay.bl{bottom:6px;left:6px}
+.chip{background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.chip:hover{background:var(--acc2)}.chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.chip.static{cursor:default;font-size:11px;color:var(--muted);max-width:100%}
+.lbl3d{background:rgba(255,255,255,.82);border:1px solid rgba(0,0,0,.15);border-radius:4px;padding:1px 5px;font-size:11px;line-height:1.25;text-align:center;white-space:nowrap;pointer-events:none;color:#111}
+.lbl3d .ar{font-weight:700;font-size:12px}.lbl3d .en{font-weight:600}.lbl3d .dm{color:#444}
+.lbl3d.door{background:#0b7285;color:#fff;border-color:#0b7285;font-weight:700;padding:0 4px}
+.errbox{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:20px;text-align:center;background:rgba(250,240,240,.96);color:#7a1b1b;z-index:9}
+.errbox.show{display:flex}
+#statusbar{display:flex;gap:12px;padding:3px 8px;background:#fff;border-top:1px solid var(--line);font-size:12px;color:var(--muted);align-items:center;flex-wrap:wrap}
+#statusbar .badge{cursor:pointer;border-radius:10px;padding:0 8px;color:#fff;background:var(--ok)}
+#statusbar .badge.w{background:var(--amber)}#statusbar .badge.e{background:var(--warn)}
+/* panels content */
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px}
+.card h3,.tabbody h3{margin:0 0 6px;font-size:13px}
+.card h4{margin:8px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.fld{display:flex;flex-direction:column;gap:2px;flex:1;min-width:92px;margin-bottom:6px}
+.fld>span{font-size:11px;color:var(--muted)}
+.fld input[type=text],.fld input[type=number],.fld select,.fld textarea{width:100%;padding:4px 6px;border:1px solid #bcc4cf;border-radius:5px;background:#fff}
+.fld input[type=color]{width:100%;height:28px;padding:1px;border:1px solid #bcc4cf;border-radius:5px;background:#fff}
+.fld input[type=range]{width:100%}
+.fld.chk{flex-direction:row;align-items:center;gap:6px;min-width:140px}
+.fld.chk>span{color:var(--ink);font-size:12px}
+.fld.chk input{margin:0}
+.fld [dir=rtl],input.ar{direction:rtl;text-align:right}
+.btn{border:1px solid #aab3be;background:#fff;border-radius:6px;padding:4px 9px;cursor:pointer}
+.btn:hover{background:var(--acc2)}.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}.btn.dng{color:var(--warn);border-color:#e3b0b0}
+.btn.sm{padding:2px 6px;font-size:12px}
+.btns{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}
+table.t{border-collapse:collapse;width:100%;font-size:12px;background:#fff}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:3px 4px;text-align:right;white-space:nowrap}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t th{background:#eef1f4;position:sticky;top:0;font-weight:600}
+table.t tr.sel td{background:#fff3d6}
+table.t tr.clk{cursor:pointer}table.t tr.clk:hover td{background:var(--acc2)}
+table.t tr.tot td{font-weight:700;background:#eef1f4}
+.li{display:flex;align-items:center;gap:6px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:#fff;margin-bottom:4px;cursor:pointer}
+.li:hover{background:var(--acc2)}.li.sel{border-color:var(--sel);background:#fff7e6;box-shadow:inset 3px 0 0 var(--sel)}
+.li .dot{width:12px;height:12px;border-radius:3px;border:1px solid rgba(0,0,0,.3);flex-shrink:0}
+.li .nm{flex:1;min-width:0}.li .nm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .nm small{color:var(--muted)}
+.li .ic{border:0;background:transparent;cursor:pointer;padding:2px 4px;border-radius:4px}.li .ic:hover{background:#e6e9ee}
+.ar,[dir=rtl]{font-family:"Segoe UI",Tahoma,"Noto Naskh Arabic","Arial",sans-serif}
+.iss{display:flex;gap:6px;align-items:flex-start;padding:5px 6px;border-left:4px solid var(--muted);background:#fff;border-radius:4px;margin-bottom:4px;cursor:pointer;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.iss:hover{background:var(--acc2)}
+.iss.error{border-left-color:var(--warn)}.iss.warn{border-left-color:var(--amber)}.iss.info{border-left-color:#4c6ef5}
+.iss small{color:var(--muted)}
+.note{font-size:12px;color:var(--muted);margin:4px 0}
+.banner{background:#fff8e1;border:1px solid #ffe08a;border-radius:6px;padding:6px 8px;font-size:12px;margin-bottom:8px}
+.seg{display:flex;border:1px solid #aab3be;border-radius:6px;overflow:hidden;margin-bottom:6px}
+.seg button{flex:1;border:0;background:#fff;padding:4px;cursor:pointer;border-right:1px solid #aab3be}.seg button:last-child{border-right:0}.seg button.on{background:var(--acc);color:#fff}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12px}.kv b{font-weight:600}
+.lib{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.lib button{text-align:left;padding:6px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer}.lib button:hover{background:var(--acc2)}.lib button.on{border-color:var(--acc);background:var(--acc2)}
+.lib small{display:block;color:var(--muted)}
+kbd{background:#eef1f4;border:1px solid #c5ccd5;border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11px}
+#toast{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:90;pointer-events:none;align-items:center}
+#toast div{background:#222b36;color:#fff;border-radius:7px;padding:7px 12px;box-shadow:0 3px 12px rgba(0,0,0,.3);max-width:80vw}
+#toast div.err{background:#a61e1e}
+#modalback{position:fixed;inset:0;background:rgba(10,16,24,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:12px}
+#modalback.show{display:flex}
+#modal{background:#fff;border-radius:10px;max-width:560px;width:100%;max-height:86vh;overflow:auto;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+#modal h2{margin:0 0 8px;font-size:16px}
+#modal ul{margin:6px 0 6px 18px;padding:0}
+#fatal{position:fixed;left:0;right:0;top:0;z-index:200;background:#a61e1e;color:#fff;padding:8px 12px;display:none;white-space:pre-wrap}
+#drawerbtns{display:none}
+.hidden{display:none!important}
+@media (max-width:1050px){
+  #left,#right{position:absolute;top:0;bottom:0;z-index:25;width:min(92vw,340px);transition:transform .2s,visibility .2s;box-shadow:0 0 18px rgba(0,0,0,.3)}
+  #left:not(.open),#right:not(.open){visibility:hidden}
+  #left{left:0;transform:translateX(-110%)}#left.open{transform:none}
+  #right{right:0;transform:translateX(110%)}#right.open{transform:none}
+  #drawerbtns{display:flex}
+}
+@media (max-width:700px){
+  #topbar,#toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+  #topbar>*,#toolbar>*{flex:0 0 auto}
+  #hint2d{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 110px)}
+  #toast div{font-size:12px;max-width:86vw}
+  #topbar .brand small{display:none}
+  .tool kbd{display:none}
+  .tool{padding:4px 6px}
+}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"},"integrity":{"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js":"sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ","https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js":"sha384-qlO/ZugKPxAQUAvTlQoo0QECzxJIJySZmCF/DHdb2Xn/hHndFwX/vfUAC9Hbk6LP","https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/renderers/CSS2DRenderer.js":"sha384-oxPlnJSeUCYU9W3RMQswb4S/vFd4Bhxuy1Ffx0V2KJakWeb6n1gaqUtSE9Ic/F72"}}
+</script>
+</head>
+<body>
+<div id="fatal"></div>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">Restaurant Plan Editor<small>schematic planning model</small></div>
+    <div class="grp" id="drawerbtns">
+      <button class="tb" id="btnLeft" title="Rooms and library">☰ Rooms</button>
+      <button class="tb" id="btnRight" title="Inspector, display, checks">⚙ Panels</button>
+    </div>
+    <div class="grp">
+      <button class="tb" id="btnUndo" title="Undo (Ctrl+Z)">↶ Undo</button>
+      <button class="tb" id="btnRedo" title="Redo (Ctrl+Y)">↷ Redo</button>
+    </div>
+    <div class="grp" id="viewSeg">
+      <button class="tb" data-view="2d" title="2D plan only (1)">2D</button>
+      <button class="tb" data-view="split" title="Side by side (2)">Split</button>
+      <button class="tb" data-view="3d" title="3D only (3)">3D</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="grp">
+      <button class="tb" id="btnExport" title="Export complete editable plan as JSON">⭳ JSON</button>
+      <button class="tb" id="btnImport" title="Import a previously exported JSON plan">⭱ Import</button>
+      <button class="tb" id="btnPng2d" title="Export current 2D view as PNG">PNG 2D</button>
+      <button class="tb" id="btnPng3d" title="Export current 3D view as PNG">PNG 3D</button>
+    </div>
+    <div class="grp">
+      <button class="tb" id="btnFull" title="Fullscreen">⛶</button>
+      <button class="tb" id="btnResetAll" title="Reset the complete plan">Reset plan</button>
+    </div>
+    <input aria-label="Import plan JSON file" type="file" id="fileImport" accept=".json,application/json" class="hidden">
+  </header>
+  <div id="main">
+    <aside id="left">
+      <div class="tabs" id="leftTabs">
+        <button data-tab="rooms" class="on">Rooms</button>
+        <button data-tab="objects">Objects</button>
+        <button data-tab="schedule">Areas</button>
+        <button data-tab="library">Library</button>
+      </div>
+      <div class="tabbody" id="leftBody">
+        <section data-tab="rooms" class="on"></section>
+        <section data-tab="objects"></section>
+        <section data-tab="schedule"></section>
+        <section data-tab="library"></section>
+      </div>
+    </aside>
+    <div id="center">
+      <div id="toolbar">
+        <div class="tg" id="tgSel"></div>
+        <div class="tg" id="tgAdd"></div>
+        <div class="tg" id="tgAct"></div>
+        <div class="tg" id="tgView"></div>
+      </div>
+      <div id="views" class="m-split">
+        <div class="pane" id="pane2d">
+          <canvas id="c2d" role="img" aria-label="2D floor plan"></canvas>
+          <div class="overlay bl" style="right:6px"><span class="chip static" id="hint2d"></span></div>
+          <div class="overlay tr">
+            <button class="chip" id="zFit" title="Fit plan">Fit</button>
+            <button class="chip" id="zIn">＋</button>
+            <button class="chip" id="zOut">－</button>
+          </div>
+        </div>
+        <div class="pane" id="pane3d">
+          <div id="gl"></div>
+          <div class="errbox" id="err3d"></div>
+          <div class="overlay tl" id="camBtns">
+            <button class="chip" data-cam="iso">Isometric</button>
+            <button class="chip" data-cam="top">Top</button>
+            <button class="chip" data-cam="front">Front</button>
+            <button class="chip" data-cam="side">Side</button>
+            <button class="chip" data-cam="focus">Focus room</button>
+            <button class="chip" data-cam="reset">Reset</button>
+          </div>
+          <div class="overlay bl" id="modeBtns">
+            <button class="chip" data-mode="solid">Solid</button>
+            <button class="chip" data-mode="wire">Wireframe</button>
+            <button class="chip" data-mode="xray">X-ray</button>
+          </div>
+        </div>
+      </div>
+      <div id="statusbar"><span id="stPos">x 0.00  z 0.00 m</span><span id="stSel">No selection</span><span id="stTip" class="spacer"></span><span class="badge" id="stBadge">0 warnings</span></div>
+    </div>
+    <aside id="right">
+      <div class="tabs" id="rightTabs">
+        <button data-tab="insp" class="on">Inspector</button>
+        <button data-tab="disp">Display</button>
+        <button data-tab="checks">Checks</button>
+        <button data-tab="help">Help</button>
+      </div>
+      <div class="tabbody" id="rightBody">
+        <section data-tab="insp" class="on"></section>
+        <section data-tab="disp"></section>
+        <section data-tab="checks"></section>
+        <section data-tab="help"></section>
+      </div>
+    </aside>
+  </div>
+  <div id="toast"></div>
+</div>
+<div id="modalback"><div id="modal" role="dialog" aria-modal="true"></div></div>
+<script type="module">
+/* =====================================================================
+   RESTAURANT PLAN EDITOR — single-file application
+   Sections: 1 config/reference data · 2 model & geometry · 3 walls & doors
+             4 validation · 5 persistence · 6 2D editor · 7 3D scene
+             8 UI panels · 9 startup
+   One serializable plan object (S.plan) is the source of truth.
+   ===================================================================== */
+'use strict';
+
+/* ---------------------------------------------------------------------
+   1. CONFIGURATION AND REFERENCE DATA
+   --------------------------------------------------------------------- */
+const LS_KEY = 'restaurantPlanEditor.v2';
+const FORMAT = 'restaurant-plan-editor';
+const FORMAT_VERSION = 1;
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const r3 = v => Math.round(v * 1000) / 1000;
+const r2 = v => Math.round(v * 100) / 100;
+const f2 = v => (Math.round(v * 100) / 100).toFixed(2);
+const fnum = v => String(r3(v));
+const deg = r => r * 180 / Math.PI;
+const rad = d => d * Math.PI / 180;
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  if (tag === 'button') e.type = 'button';
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === false || v == null) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+    else if (k === 'value' || k === 'checked' || k === 'disabled' || k === 'selected') e[k] = v;
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    e.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return e;
+}
+
+const CATEGORIES = {
+  receiving:   { label: 'Receiving / dispatch', floor: '#c4c2bb', mat: 'concrete' },
+  storage:     { label: 'Dry storage',          floor: '#c8c6c0', mat: 'concrete' },
+  cold:        { label: 'Chilled storage',      floor: '#bcd2dc', mat: 'epoxy' },
+  dining:      { label: 'Dining',               floor: '#c9a27a', mat: 'wood' },
+  electrical:  { label: 'Electrical / utility', floor: '#d3c9b5', mat: 'concrete' },
+  wash:        { label: 'Washing',              floor: '#aebfc7', mat: 'tile' },
+  circulation: { label: 'Circulation',          floor: '#dcdad3', mat: 'epoxy' },
+  prep:        { label: 'Food preparation',     floor: '#b9bcc0', mat: 'tile' },
+  kitchen:     { label: 'Kitchen',              floor: '#b4b8bd', mat: 'tile' },
+  other:       { label: 'Other zone',           floor: '#d0cfc8', mat: 'concrete' }
+};
+const FLOOR_MATS = {
+  tile: { label: 'Quarry / ceramic tile', rough: 0.35, metal: 0.05 },
+  concrete: { label: 'Polished concrete', rough: 0.8, metal: 0 },
+  wood: { label: 'Timber / laminate', rough: 0.55, metal: 0 },
+  epoxy: { label: 'Epoxy resin', rough: 0.25, metal: 0.05 },
+  vinyl: { label: 'Commercial vinyl', rough: 0.5, metal: 0 },
+  stone: { label: 'Stone', rough: 0.7, metal: 0 }
+};
+const WALL_MATS = {
+  plaster: { label: 'Painted plaster', rough: 0.9 },
+  tile: { label: 'Wall tile', rough: 0.3 },
+  concrete: { label: 'Concrete', rough: 0.85 },
+  panel: { label: 'Hygienic panel', rough: 0.4 }
+};
+const DOOR_MATS = {
+  wood: { label: 'Timber', rough: 0.6, metal: 0, opacity: 1 },
+  metal: { label: 'Painted metal', rough: 0.4, metal: 0.3, opacity: 1 },
+  glass: { label: 'Glazed', rough: 0.1, metal: 0, opacity: 0.35 }
+};
+
+/* Furniture & equipment library (all illustrative). Sizes in metres. */
+const LIB = {
+  diningTable: { label: 'Dining table', w: 1.2, d: 0.8, h: 0.75, elev: 0, color: '#a67c52' },
+  chair:       { label: 'Chair', w: 0.45, d: 0.45, h: 0.9, elev: 0, color: '#7a5230' },
+  shelf:       { label: 'Storage shelf / rack', w: 1.2, d: 0.45, h: 1.9, elev: 0, color: '#8d9aa5' },
+  pallet:      { label: 'Pallet staging', w: 1.2, d: 0.8, h: 0.5, elev: 0, color: '#b08d57' },
+  prepTable:   { label: 'Preparation table', w: 1.8, d: 0.8, h: 0.9, elev: 0, color: '#c5ccd2' },
+  counter:     { label: 'Counter', w: 1.8, d: 0.7, h: 0.9, elev: 0, color: '#b9a99a' },
+  sink:        { label: 'Sink', w: 1.2, d: 0.7, h: 0.9, elev: 0, color: '#c5ccd2' },
+  dishRack:    { label: 'Dish rack', w: 1.2, d: 0.5, h: 1.7, elev: 0, color: '#c5ccd2' },
+  dishwasher:  { label: 'Washing machine', w: 0.8, d: 0.8, h: 1.1, elev: 0, color: '#c5ccd2' },
+  fridge:      { label: 'Refrigerator', w: 0.8, d: 0.8, h: 2.0, elev: 0, color: '#d6dde2' },
+  coldShelf:   { label: 'Cold-storage shelving', w: 1.2, d: 0.5, h: 2.0, elev: 0, color: '#a9c4d4' },
+  oven:        { label: 'Oven', w: 0.9, d: 0.8, h: 1.8, elev: 0, color: '#b8bec4' },
+  range:       { label: 'Cooking range', w: 0.9, d: 0.9, h: 0.9, elev: 0, color: '#b8bec4' },
+  mixer:       { label: 'Mixer', w: 0.5, d: 0.6, h: 0.8, elev: 0, color: '#aab2ba' },
+  panel:       { label: 'Electrical panel', w: 0.8, d: 0.2, h: 1.8, elev: 0, color: '#8a9199' },
+  hood:        { label: 'Extraction hood (illustrative)', w: 3.0, d: 1.1, h: 1.3, elev: 1.9, color: '#c1c8ce' }
+};
+
+const DEFAULT_SETTINGS = {
+  wallThickness: 0.10,   // specified by the user
+  wallHeight: 3.2,       // provisional assumption
+  doorWidth: 0.90,       // provisional assumption (drawing legend)
+  doorHeight: 2.10,      // provisional assumption
+  convention: 'centerline', // unconfirmed dimension convention
+  gridSize: 0.5,
+  snapGrid: true,
+  snapCorners: true
+};
+const DEFAULT_DISPLAY = {
+  labelLang: 'both', showRoomLabels: true, showDims: true, showArea: true, showDoorLabels: true,
+  showEquipment: true, showFloors: true, showCeilings: false, ceilingColor: '#f2f0ea',
+  wallColor: '#e9e6df', floorOverride: false, floorColor: '#c9c6bf', groundColor: '#d9d7d2',
+  showGrid3d: true, showGrid2d: true, light: 1.0, shadows: true, suppLights: false,
+  mode3d: 'solid', openDoors: true
+};
+
+/* Reference spaces: length x width as stated; rot 90 = length runs along Z. */
+const REF_ROOMS = [
+  { key: 'receiving', en: 'Receiving, dispatch and chilled storage area', ar: 'منطقة استلام و تسلم ومنطقة التبريد', L: 11, W: 10, rot: 90, x: 13, z: -11, cat: 'receiving', anchor: { fx: 0.25, fz: 0.5 },
+    note: 'Merged room (receiving and dispatch + chilled storage): 11 m long × 10 m wide = 110 m². Position approximate: above the corridor, shifted 1 m left of the corridor start (x 13–23) so the upper row fits within the lower footprint width of 38 m.' },
+  { key: 'dryStore', en: 'Dry store', ar: 'مخزن جاف', L: 10, W: 7, rot: 0, x: 18, z: -18, cat: 'storage',
+    note: 'Position approximate: modeled at its stated 10 × 7 m above the merged receiving/chilled room and the store (x 18–28). The drawing shows it narrower.' },
+  { key: 'store', en: 'Store', ar: 'مخزن', L: 11, W: 2, rot: 90, x: 23, z: -11, cat: 'storage',
+    note: 'Position approximate: narrow store right of the merged receiving/chilled room, bottom edge on the corridor line.' },
+  { key: 'upperDining', en: 'Upper dining hall', ar: 'صالة الطعام', L: 11, W: 8, rot: 90, x: 25, z: -11, cat: 'dining',
+    note: 'Position approximate: stated 8 × 11 m used; the drawing shows a narrower schematic proportion.' },
+  { key: 'electrical', en: 'Electrical room', ar: 'غرفة الكهرباء', L: 4, W: 2, rot: 90, x: 33, z: -4, cat: 'electrical',
+    note: 'Position approximate: drawn inside an upper-right block; modeled beside the upper dining hall with an unlabeled 2 × 3 m area above it.' },
+  { key: 'washing', en: 'Washing area', ar: 'الغسيل', L: 7, W: 3, rot: 90, x: 35, z: -7, cat: 'wash',
+    note: 'Position approximate: at the far right above the kitchen.' },
+  { key: 'corridor', en: 'Service corridor', ar: 'ممر خدمة', L: 16, W: 2, rot: 0, x: 14, z: 0, cat: 'circulation', note: '' },
+  { key: 'lowerDining', en: 'Lower-left dining hall', ar: 'صالة الطعام', L: 14, W: 9, rot: 0, x: 0, z: 0, cat: 'dining', note: '' },
+  { key: 'mealPrep', en: 'Meal preparation', ar: 'تجهيز الوجبات', L: 7, W: 6, rot: 90, x: 14, z: 2, cat: 'prep', note: '' },
+  { key: 'pastry', en: 'Pastry', ar: 'الحلواني', L: 7, W: 4, rot: 90, x: 20, z: 2, cat: 'prep', note: '' },
+  { key: 'salad', en: 'Salad preparation', ar: 'السلطة', L: 7, W: 3, rot: 90, x: 24, z: 2, cat: 'prep', note: '' },
+  { key: 'butchery', en: 'Butchery', ar: 'الجزار', L: 7, W: 3, rot: 90, x: 27, z: 2, cat: 'prep', note: '' },
+  { key: 'kitchen', en: 'Kitchen', ar: 'المطبخ', L: 9, W: 8, rot: 90, x: 30, z: 0, cat: 'kitchen', note: '' },
+  /* Sub-zones: open areas inside another room. No partition walls, not added to the area total. */
+  { key: 'chilled', en: 'Chilled storage area', ar: 'منطقة التبريد', L: 8, W: 5, rot: 90, x: 18, z: -8, cat: 'cold', zoneOf: 'room-receiving',
+    note: 'Open sub-zone of the merged room; stated 8 × 5 m kept for reference. No partition wall was added.' },
+  { key: 'intCorridor', en: 'Internal corridor', ar: 'ممر داخلي', L: 5, W: 1.5, rot: 0, x: 18, z: -11, cat: 'circulation', zoneOf: 'room-receiving', floor: '#e4e1d8', anchor: { fx: 0.68, fz: 0.5 },
+    note: 'Open sub-zone 5.00 × 1.50 m against the dry store wall, linking the chilled area and the dry store. The 1.5 m strip between it and the chilled zone is open floor (assumed). Edit its position if the intended layout differs.' }
+];
+const FLOOR_COLORS = { intCorridor: '#e4e1d8', upperDining: '#c9a27a', lowerDining: '#c4986b', pastry: '#e1d3c2', salad: '#c9d6bf', butchery: '#d7b8b2', corridor: '#dcdad3' };
+
+/* The 16 remaining door markers. Positions are world coordinates (m) close to the
+   markers in the drawing; the host wall is found automatically. The removed marker
+   inside the butchery is deliberately NOT listed. */
+const REF_DOORS = [
+  { n: 1, x: 15.5, z: -11, desc: 'Receiving area, upper boundary' },
+  { n: 2, x: 18, z: -12.5, desc: 'Dry store, left boundary near the receiving area', unc: 'Host wall and destination ambiguous in the drawing; placed on the dry-store left wall.' },
+  { n: 3, x: 13, z: -5.5, desc: 'Receiving area, left boundary' },
+  { n: 4, x: 33, z: -9, desc: 'Upper dining hall, right exterior boundary' },
+  { n: 5, x: 34, z: -7, desc: 'Upper-right area, upper horizontal boundary near the washing area', unc: 'The drawing shows an unlabeled upper-right area. A closing wall was assumed so this marker has a host wall.' },
+  { n: 6, x: 34, z: -4, desc: 'Electrical-room area, upper horizontal boundary', unc: 'Opens into the unlabeled upper-right area (assumed), not directly outdoors.' },
+  { n: 7, x: 16, z: 0, desc: 'Receiving area, boundary with the service corridor' },
+  { n: 8, x: 24, z: 0, desc: 'Narrow store, boundary with the service corridor' },
+  { n: 9, x: 36.5, z: 0, desc: 'Washing-area side, boundary near the kitchen' },
+  { n: 10, x: 0, z: 3.5, desc: 'Lower-left dining hall, left exterior boundary' },
+  { n: 11, x: 14, z: 1, desc: 'Lower-left dining hall, right boundary near the corridor' },
+  { n: 12, x: 17.5, z: 2, desc: 'Meal preparation, boundary with the service corridor' },
+  { n: 13, x: 22.6, z: 2, desc: 'Pastry, boundary with the service corridor' },
+  { n: 14, x: 25.5, z: 2, desc: 'Salad preparation, boundary with the service corridor' },
+  { n: 15, x: 28, z: 2, desc: 'Butchery, boundary with the service corridor' },
+  { n: 16, x: 30, z: 1, desc: 'Kitchen, left boundary near the service corridor' }
+];
+
+/* Static assumption statements shown in the Checks panel. */
+function staticAssumptions(plan) {
+  const s = plan.settings;
+  return [
+    ['Schematic plan', 'The drawing is a schematic, not a surveyed plan. Exact global coordinates, verified door widths, ceiling details and construction details cannot be derived from it. This model is an illustrative planning tool, not a construction-ready drawing or code-compliance assessment.'],
+    ['Wall thickness ' + f2(s.wallThickness) + ' m', 'Selected by the user and editable (plan settings / wall inspector).'],
+    ['Wall height ' + f2(s.wallHeight) + ' m', 'Provisional design assumption — not a universal standard. No jurisdiction, code or design standard was supplied.'],
+    ['Door width ' + f2(s.doorWidth) + ' m, height ' + f2(s.doorHeight) + ' m', 'Width follows the drawing legend as a provisional value; height is an assumption. Neither is a universal standard.'],
+    ['Dimension convention: ' + ({ centerline: 'wall centerlines', inside: 'clear inside', outside: 'outside faces' })[s.convention], 'Not confirmed. The model always lays rooms out on a shared wall centerline grid, so clear inside dimensions are smaller than stated dimensions by the wall thickness. See the Inspector dashboard for each room.'],
+    ['Door types, heights and swings', 'Door type, frame, swing direction and leaf style are assumptions. The original ovals only mark positions.'],
+    ['Merged receiving + chilled area', 'Per the latest instruction the receiving/dispatch and chilled storage areas are one room, 11 m long × 10 m wide (110 m²). Chilled storage (8 × 5 m) is kept as an open sub-zone without a partition. A 5.00 × 1.50 m internal corridor zone lies against the dry store wall; the 1.5 m strip between it and the chilled zone is open floor (assumed). Door 17 (1.50 m double leaf, assumed) joins the corridor to the dry store. Sub-zones are not added to the area total.'],
+    ['Upper-room placement', 'Upper-room coordinates and shared walls are not specified by the drawing. The merged room is shifted 1 m left of the corridor start; the dry store is modeled at its full stated size above the merged room and the store; the electrical room and washing area are placed to fit within the lower footprint width (38 m).'],
+    ['Unlabeled upper-right area', 'A 2 × 3 m area above the electrical room is enclosed by an assumed manual wall (shown in the Objects list) so door markers 5 and 6 have host walls.'],
+    ['Furniture and equipment', 'All furniture, equipment, hood and finishes are illustrative assumptions.'],
+    ['Total of listed areas', 'The sum of listed space areas (' + f2(plan.rooms.filter(r => !isZone(plan, r)).reduce((a, r) => a + r.ref.L * r.ref.W, 0)) + ' m² initially, after the merge) is not a verified building footprint or gross floor area.'],
+    ['Visual checks', 'Warnings are visual planning aids only — not architectural, engineering, fire-safety or regulatory approval.']
+  ];
+}
+
+/* ---------------------------------------------------------------------
+   2. MODEL AND GEOMETRY HELPERS
+   --------------------------------------------------------------------- */
+const S = {
+  plan: null, sel: null, tool: 'select', libType: 'prepTable',
+  display: { ...DEFAULT_DISPLAY },
+  cam2: { cx: 19, cz: -4.5, scale: 18 },
+  cam3: null,
+  viewMode: 'split',
+  undo: [], redo: [],
+  issues: [],
+  dirty2d: true, dirty3d: true, dirtyUI: true, dirtyInsp: true
+};
+
+function nid(plan, prefix) {
+  plan.seq = (plan.seq || 0) + 1;
+  return prefix + '-' + String(plan.seq).padStart(3, '0');
+}
+const stExt = r => r.rot === 90 ? { w: r.W, d: r.L } : { w: r.L, d: r.W };
+const fp = r => r.linkModel ? stExt(r) : { w: r.modeled.w, d: r.modeled.d };
+const rectOf = r => { const f = fp(r); return { x: r.x, z: r.z, w: f.w, d: f.d }; };
+const roomById = (plan, id) => plan.rooms.find(r => r.id === id);
+const wallById = (plan, id) => plan.walls.find(w => w.id === id);
+const doorById = (plan, id) => plan.doors.find(d => d.id === id);
+const equipById = (plan, id) => plan.equipment.find(e => e.id === id);
+const roomName = r => r ? r.nameEn : '—';
+const isZone = (plan, r) => !!r.zoneOf && plan.rooms.some(p => p.id === r.zoneOf);
+
+function wallInfo(plan, w) {
+  const dx = w.x2 - w.x1, dz = w.z2 - w.z1, len = Math.hypot(dx, dz) || 1e-9;
+  return {
+    len, ux: dx / len, uz: dz / len, nx: -dz / len, nz: dx / len,
+    t: w.thickness != null ? w.thickness : plan.settings.wallThickness,
+    H: w.height != null ? w.height : plan.settings.wallHeight,
+    horizontal: Math.abs(dz) < 1e-6
+  };
+}
+function wallPoint(w, off) {
+  const dx = w.x2 - w.x1, dz = w.z2 - w.z1, len = Math.hypot(dx, dz) || 1e-9;
+  return { x: w.x1 + dx / len * off, z: w.z1 + dz / len * off };
+}
+function segDist(px, pz, x1, z1, x2, z2) {
+  const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz;
+  let t = l2 < 1e-12 ? 0 : ((px - x1) * dx + (pz - z1) * dz) / l2;
+  t = clamp(t, 0, 1);
+  const qx = x1 + dx * t, qz = z1 + dz * t;
+  return { d: Math.hypot(px - qx, pz - qz), t, qx, qz };
+}
+function nearestWall(plan, x, z, tol, prefer) {
+  let best = null;
+  for (const w of plan.walls) {
+    const s = segDist(x, z, w.x1, w.z1, w.x2, w.z2);
+    const d = s.d - (w.id === prefer ? 1e-4 : 0);
+    if (s.d <= tol && (!best || d < best.d)) {
+      const len = Math.hypot(w.x2 - w.x1, w.z2 - w.z1);
+      best = { wall: w, d, t: s.t, offset: r3(s.t * len), qx: s.qx, qz: s.qz };
+    }
+  }
+  return best;
+}
+function roomAt(plan, x, z) {
+  let best = null, ba = Infinity;
+  for (const r of plan.rooms) {
+    const q = rectOf(r);
+    if (x > q.x + 1e-6 && x < q.x + q.w - 1e-6 && z > q.z + 1e-6 && z < q.z + q.d - 1e-6 && q.w * q.d < ba) { best = r; ba = q.w * q.d; }
+  }
+  return best;
+}
+
+/* Openings in a wall derived from the doors hosted on it (clipped to the wall). */
+function wallOpenings(plan, w) {
+  const info = wallInfo(plan, w), ops = [];
+  for (const d of plan.doors) {
+    if (d.hostWallId !== w.id) continue;
+    const a = Math.max(0, d.offset - d.width / 2), b = Math.min(info.len, d.offset + d.width / 2);
+    if (b - a < 0.05) continue;
+    ops.push({ a, b, h: Math.min(Math.max(d.height, 0.1), info.H), ids: [d.id] });
+  }
+  ops.sort((p, q) => p.a - q.a);
+  const out = [];
+  for (const o of ops) {
+    const l = out[out.length - 1];
+    if (l && o.a <= l.b + 1e-6) { l.b = Math.max(l.b, o.b); l.h = Math.max(l.h, o.h); l.ids.push(...o.ids); }
+    else out.push({ ...o });
+  }
+  return out;
+}
+
+function eqPoly(e) {
+  const a = rad(e.rot || 0), c = Math.cos(a), s = Math.sin(a);
+  return [[-e.w / 2, -e.d / 2], [e.w / 2, -e.d / 2], [e.w / 2, e.d / 2], [-e.w / 2, e.d / 2]]
+    .map(([x, z]) => [e.x + x * c - z * s, e.z + x * s + z * c]);
+}
+function polyIntersect(A, B) {
+  for (const P of [A, B]) {
+    for (let i = 0; i < P.length; i++) {
+      const p = P[i], q = P[(i + 1) % P.length];
+      const ax = -(q[1] - p[1]), az = q[0] - p[0];
+      let min1 = Infinity, max1 = -Infinity, min2 = Infinity, max2 = -Infinity;
+      for (const v of A) { const d = v[0] * ax + v[1] * az; min1 = Math.min(min1, d); max1 = Math.max(max1, d); }
+      for (const v of B) { const d = v[0] * ax + v[1] * az; min2 = Math.min(min2, d); max2 = Math.max(max2, d); }
+      if (max1 <= min2 + 1e-9 || max2 <= min1 + 1e-9) return false;
+    }
+  }
+  return true;
+}
+function doorZone(plan, d, depth = 1.0) {
+  const w = wallById(plan, d.hostWallId); if (!w) return null;
+  const i = wallInfo(plan, w), c = wallPoint(w, d.offset), hw = d.width / 2 + 0.1;
+  const P = (su, sn) => [c.x + i.ux * hw * su + i.nx * depth * sn, c.z + i.uz * hw * su + i.nz * depth * sn];
+  return [P(-1, -1), P(1, -1), P(1, 1), P(-1, 1)];
+}
+
+/* ---------------------------------------------------------------------
+   3. WALL GENERATION, DOORS, INITIAL PLAN
+   --------------------------------------------------------------------- */
+/* Build wall segments from room edges. Shared edges become one partition
+   (no duplicate surfaces); an edge owned by a single room is exterior. */
+function generateWalls(plan) {
+  const lines = { H: new Map(), V: new Map() };
+  const add = (map, key, a, b, id) => { key = r3(key); if (!map.has(key)) map.set(key, []); map.get(key).push({ a: r3(a), b: r3(b), id }); };
+  for (const r of plan.rooms) {
+    if (isZone(plan, r)) continue;
+    const q = rectOf(r); if (!(q.w > 0 && q.d > 0)) continue;
+    add(lines.H, q.z, q.x, q.x + q.w, r.id); add(lines.H, q.z + q.d, q.x, q.x + q.w, r.id);
+    add(lines.V, q.x, q.z, q.z + q.d, r.id); add(lines.V, q.x + q.w, q.z, q.z + q.d, r.id);
+  }
+  const out = [];
+  for (const [dir, map] of Object.entries(lines)) {
+    for (const [key, ivs] of map) {
+      const pts = [...new Set(ivs.flatMap(i => [i.a, i.b]))].sort((m, n) => m - n);
+      let cur = null;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p = pts[i], q = pts[i + 1]; if (q - p < 1e-4) continue;
+        const owners = [...new Set(ivs.filter(v => v.a <= p + 1e-6 && v.b >= q - 1e-6).map(v => v.id))].sort();
+        if (!owners.length) { cur = null; continue; }
+        const ok = owners.join('|');
+        if (cur && cur.ok === ok && Math.abs(cur.b - p) < 1e-4) cur.b = q;
+        else { cur = { dir, key: Number(key), a: p, b: q, ok, owners }; out.push(cur); }
+      }
+    }
+  }
+  return out.map(s => s.dir === 'H'
+    ? { x1: s.a, z1: s.key, x2: s.b, z2: s.key, owners: s.owners }
+    : { x1: s.key, z1: s.a, x2: s.key, z2: s.b, owners: s.owners });
+}
+function newWall(plan, g, manual, extra) {
+  return Object.assign({
+    id: nid(plan, 'wall'), x1: g.x1, z1: g.z1, x2: g.x2, z2: g.z2, owners: g.owners || [],
+    thickness: null, height: null, color: null, material: 'plaster',
+    exterior: (g.owners || []).length < 2, exteriorSet: false, manual: !!manual, locked: false, note: ''
+  }, extra || {});
+}
+function axisOverlap(o, s) {
+  const oh = Math.abs(o.z1 - o.z2) < 1e-6, sh = Math.abs(s.z1 - s.z2) < 1e-6;
+  if (oh !== sh) return 0;
+  if (oh) { if (Math.abs(o.z1 - s.z1) > 0.01) return 0; return Math.max(0, Math.min(Math.max(o.x1, o.x2), Math.max(s.x1, s.x2)) - Math.max(Math.min(o.x1, o.x2), Math.min(s.x1, s.x2))); }
+  if (Math.abs(o.x1 - s.x1) > 0.01) return 0;
+  return Math.max(0, Math.min(Math.max(o.z1, o.z2), Math.max(s.z1, s.z2)) - Math.max(Math.min(o.z1, o.z2), Math.min(s.z1, s.z2)));
+}
+/* Replace generated walls from the current rooms, keep manual walls, keep the
+   ids/styles of generated walls that still exist, and re-host doors. */
+function rebuildWalls(plan) {
+  const old = plan.walls.filter(w => !w.manual), manual = plan.walls.filter(w => w.manual);
+  const used = new Set();
+  const nw = generateWalls(plan).map(s => {
+    const len = Math.hypot(s.x2 - s.x1, s.z2 - s.z1);
+    let best = null, bo = 0;
+    for (const o of old) { if (used.has(o.id)) continue; const ov = axisOverlap(o, s); if (ov > bo) { best = o; bo = ov; } }
+    if (best && bo >= 0.5 * len) {
+      used.add(best.id);
+      const w = { ...best, x1: s.x1, z1: s.z1, x2: s.x2, z2: s.z2, owners: s.owners };
+      if (!best.exteriorSet) w.exterior = s.owners.length < 2;
+      return w;
+    }
+    return newWall(plan, s, false);
+  });
+  plan.walls = [...nw, ...manual];
+  rehostDoors(plan);
+}
+function rehostDoors(plan) {
+  for (const d of plan.doors) {
+    const b = nearestWall(plan, d.ax, d.az, 0.25, d.hostWallId);
+    if (b) { d.hostWallId = b.wall.id; d.offset = b.offset; } else d.hostWallId = null;
+  }
+}
+function syncAnchors(plan) {
+  for (const d of plan.doors) {
+    const w = wallById(plan, d.hostWallId);
+    if (w) { const p = wallPoint(w, d.offset); d.ax = r3(p.x); d.az = r3(p.z); }
+  }
+}
+function sidesOf(plan, d) {
+  const w = wallById(plan, d.hostWallId); if (!w) return ['', ''];
+  const i = wallInfo(plan, w), c = wallPoint(w, d.offset);
+  const nm = r => r ? r.nameEn : 'Exterior / unassigned area';
+  return [nm(roomAt(plan, c.x + i.nx * 0.4, c.z + i.nz * 0.4)), nm(roomAt(plan, c.x - i.nx * 0.4, c.z - i.nz * 0.4))];
+}
+function newDoor(plan, hostWallId, offset, over) {
+  const w = wallById(plan, hostWallId), s = plan.settings;
+  const d = Object.assign({
+    id: nid(plan, 'door'), hostWallId, offset: r3(offset), width: s.doorWidth, height: s.doorHeight,
+    type: 'single', swing: 1, hinge: 'start', color: '#8b5e3c', frameColor: '#4a4f57', material: 'wood',
+    sideA: '', sideB: '', refNo: null, note: '', uncertain: false, locked: false, ax: 0, az: 0
+  }, over || {});
+  if (w) { const p = wallPoint(w, offset); d.ax = r3(p.x); d.az = r3(p.z); }
+  plan.doors.push(d);
+  const [a, b] = sidesOf(plan, d); if (!d.sideA) d.sideA = a; if (!d.sideB) d.sideB = b;
+  return d;
+}
+function makeRoom(plan, o) {
+  const cat = CATEGORIES[o.category] || CATEGORIES.other;
+  const r = {
+    id: o.id || nid(plan, 'room'), nameEn: o.nameEn, nameAr: o.nameAr || '', category: o.category || 'other',
+    L: o.L, W: o.W, rot: o.rot, x: o.x, z: o.z, linkModel: true, modeled: { w: 0, d: 0 },
+    floorColor: o.floorColor || cat.floor, floorMaterial: o.floorMaterial || cat.mat,
+    showLabel: true, locked: false, notes: o.notes || '', approx: o.approx || '', zoneOf: o.zoneOf || null, anchor: o.anchor || null
+  };
+  const e = stExt(r); r.modeled = { w: e.w, d: e.d };
+  r.ref = { L: r.L, W: r.W, rot: r.rot, x: r.x, z: r.z, area: r2(r.L * r.W), nameEn: r.nameEn, nameAr: r.nameAr, category: r.category, floorColor: r.floorColor, floorMaterial: r.floorMaterial };
+  return r;
+}
+
+function makeDefaultPlan() {
+  const plan = { seq: 0, settings: { ...DEFAULT_SETTINGS }, rooms: [], walls: [], doors: [], equipment: [] };
+  for (const q of REF_ROOMS) {
+    plan.rooms.push(makeRoom(plan, { id: 'room-' + q.key, nameEn: q.en, nameAr: q.ar, category: q.cat, L: q.L, W: q.W, rot: q.rot, x: q.x, z: q.z, floorColor: FLOOR_COLORS[q.key], approx: q.note, zoneOf: q.zoneOf, anchor: q.anchor }));
+  }
+  rebuildWalls(plan);
+  plan.walls.push(newWall(plan, { x1: 33, z1: -7, x2: 35, z2: -7, owners: [] }, true, { exterior: true, exteriorSet: true,
+    note: 'Assumed closing wall for the unlabeled upper-right area so door markers 5 and 6 have host walls.' }));
+  for (const q of REF_DOORS) {
+    const b = nearestWall(plan, q.x, q.z, 0.3);
+    const d = newDoor(plan, b ? b.wall.id : null, b ? b.offset : 0, { id: 'door-' + String(q.n).padStart(2, '0'), refNo: q.n, ax: q.x, az: q.z, uncertain: !!q.unc, note: (q.desc + (q.unc ? ' — ' + q.unc : '')) });
+    if (b) { const p = wallPoint(b.wall, b.offset); d.ax = r3(p.x); d.az = r3(p.z); }
+  }
+  const b17 = nearestWall(plan, 19.2, -11, 0.3);
+  if (b17) newDoor(plan, b17.wall.id, b17.offset, { id: 'door-17', width: 1.5, type: 'double', uncertain: true, note: 'Added per the merge instruction: opening from the internal corridor into the dry store. Type and width are assumptions.' });
+  plan.seq = Math.max(plan.seq, 100);
+  plan.equipment = initialEquipment(plan);
+  return plan;
+}
+
+function eqItem(plan, type, x, z, rot, extra) {
+  const L = LIB[type];
+  return Object.assign({ id: nid(plan, 'eq'), type, name: L.label, x, z, w: L.w, d: L.d, h: L.h, elev: L.elev, rot: rot || 0, color: L.color, hidden: false, locked: false }, extra || {});
+}
+/* Modest, illustrative initial layout. Doorways and their 1 m approaches stay clear. */
+function initialEquipment(plan) {
+  const out = [], E = (t, x, z, rot, ex) => out.push(eqItem(plan, t, x, z, rot, ex));
+  const diningSet = (x, z) => {
+    E('diningTable', x, z, 0);
+    E('chair', x - 0.3, z - 0.65, 180); E('chair', x + 0.3, z - 0.65, 180);
+    E('chair', x - 0.3, z + 0.65, 0); E('chair', x + 0.3, z + 0.65, 0);
+  };
+  for (const z of [2.8, 6.4]) for (const x of [3.6, 7.0, 10.4]) diningSet(x, z);                 // lower-left dining hall
+  for (const z of [-8.4, -5.4, -2.4]) for (const x of [27.4, 30.4]) diningSet(x, z);             // upper dining hall
+  // Receiving and dispatch: staging surfaces and shelving
+  E('prepTable', 17.45, -8.3, 90, { name: 'Staging table' }); E('prepTable', 17.45, -5.8, 90, { name: 'Staging table' });
+  E('shelf', 17.6, -2.6, 90); E('shelf', 13.5, -9.1, 90); E('pallet', 15.2, -3.0, 0);
+  // Dry store racks
+  for (let i = 0; i < 7; i++) { E('shelf', r2(19.3 + 1.3 * i), -17.55, 0); E('shelf', r2(19.3 + 1.3 * i), -15.0, 0); }
+  for (let i = 0; i < 4; i++) E('shelf', r2(23.2 + 1.3 * i), -12.2, 0);
+  // Chilled storage
+  for (const z of [-6.8, -5.5, -4.2]) { E('coldShelf', 22.55, z, 90); E('coldShelf', 18.45, z, 90); }
+  E('fridge', 20.5, -7.5, 0);
+  // Narrow store racks
+  for (const z of [-9.8, -8.5, -7.2, -5.9, -4.6, -3.3]) E('shelf', 23.45, z, 90);
+  // Meal preparation
+  E('prepTable', 15.4, 5.3, 0); E('prepTable', 18.6, 5.3, 0);
+  for (const x of [14.9, 16.2, 17.5, 18.8]) E('shelf', x, 8.6, 0);
+  // Pastry
+  E('prepTable', 22.0, 5.4, 0, { name: 'Pastry worktable' }); E('oven', 20.9, 8.5, 180); E('mixer', 23.1, 8.5, 180);
+  // Salad preparation
+  E('sink', 24.5, 5.5, 270); E('counter', 26.55, 5.8, 90, { name: 'Salad prep counter' });
+  // Butchery
+  E('prepTable', 29.45, 5.5, 90, { name: 'Butchery table' }); E('sink', 27.5, 4.8, 270); E('fridge', 27.6, 8.4, 180);
+  // Kitchen
+  for (const x of [31.6, 32.55, 33.5]) E('range', x, 8.5, 180);
+  E('oven', 34.7, 8.5, 180); E('oven', 35.65, 8.5, 180);
+  E('hood', 32.55, 8.45, 0, { name: 'Extraction hood (illustrative)' });
+  E('prepTable', 32.7, 4.8, 0, { name: 'Kitchen counter' }); E('prepTable', 35.3, 4.8, 0, { name: 'Kitchen counter' });
+  E('counter', 37.55, 4.0, 90); E('counter', 37.55, 6.0, 90); E('sink', 34.0, 2.2, 0);
+  // Washing area
+  E('sink', 37.6, -5.6, 90); E('sink', 37.6, -4.2, 90);
+  E('dishRack', 35.35, -5.5, 90); E('dishRack', 35.35, -4.1, 90); E('dishwasher', 36.5, -6.4, 0);
+  // Electrical room
+  E('panel', 33.15, -1.6, 270);
+  return out;
+}
+
+/* ---------------------------------------------------------------------
+   4. VALIDATION (visual planning aids only)
+   --------------------------------------------------------------------- */
+function validate(plan) {
+  const out = [];
+  const add = (sev, code, msg, target, k) => out.push({ sev, code, msg, target, key: code + ':' + (target ? target.id : '') + (k || '') });
+  const st = plan.settings;
+  const walls = plan.walls, doors = plan.doors, rooms = plan.rooms;
+  const dn = d => d.refNo ? 'Door ' + d.refNo : d.id;
+  // rooms
+  for (const r of rooms) {
+    const f = fp(r), e = stExt(r), T = { type: 'room', id: r.id };
+    if (!(r.L > 0 && r.W > 0)) add('error', 'room-dim', roomName(r) + ': stated length/width must be positive.', T);
+    if (!(f.w > 0 && f.d > 0)) add('error', 'room-modeled', roomName(r) + ': modeled footprint must be positive.', T);
+    if (Math.abs(f.w - e.w) > 1e-6 || Math.abs(f.d - e.d) > 1e-6)
+      add('warn', 'room-stated-modeled', roomName(r) + ': modeled footprint ' + f2(f.w) + ' × ' + f2(f.d) + ' m differs from stated ' + f2(e.w) + ' × ' + f2(e.d) + ' m.', T);
+    if (r.approx) add('info', 'room-approx', roomName(r) + ': ' + r.approx, T);
+    if (isZone(plan, r)) {
+      const q = rectOf(r), pq = rectOf(roomById(plan, r.zoneOf)), t = 0.01;
+      if (q.x < pq.x - t || q.z < pq.z - t || q.x + q.w > pq.x + pq.w + t || q.z + q.d > pq.z + pq.d + t) add('warn', 'zone-outside', roomName(r) + ' extends outside its parent room.', T);
+    }
+  }
+  for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++) {
+    if (rooms[i].zoneOf === rooms[j].id || rooms[j].zoneOf === rooms[i].id) continue;
+    const a = rectOf(rooms[i]), b = rectOf(rooms[j]);
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oz = Math.min(a.z + a.d, b.z + b.d) - Math.max(a.z, b.z);
+    if (ox > 0.01 && oz > 0.01) add('warn', 'room-overlap', roomName(rooms[i]) + ' overlaps ' + roomName(rooms[j]) + ' by ' + f2(ox * oz) + ' m².', { type: 'room', id: rooms[i].id }, '|' + rooms[j].id);
+  }
+  // walls
+  for (const w of walls) {
+    const i = wallInfo(plan, w), T = { type: 'wall', id: w.id };
+    if (i.len < 0.05) add('error', 'wall-short', 'Wall ' + w.id + ' is almost zero length.', T);
+    if (!(i.t > 0)) add('error', 'wall-thick', 'Wall ' + w.id + ' has non-positive thickness.', T);
+    if (!(i.H > 0)) add('error', 'wall-height', 'Wall ' + w.id + ' has non-positive height.', T);
+  }
+  for (let i = 0; i < walls.length; i++) for (let j = i + 1; j < walls.length; j++) {
+    const ov = axisOverlap(walls[i], walls[j]);
+    if (ov > 0.02) add('warn', 'wall-overlap', 'Walls ' + walls[i].id + ' and ' + walls[j].id + ' overlap along ' + f2(ov) + ' m (duplicate surfaces).', { type: 'wall', id: walls[i].id }, '|' + walls[j].id);
+  }
+  for (const w of walls) {
+    const i = wallInfo(plan, w);
+    for (const p of [[w.x1, w.z1], [w.x2, w.z2]]) {
+      const touch = walls.some(o => o !== w && segDist(p[0], p[1], o.x1, o.z1, o.x2, o.z2).d <= wallInfo(plan, o).t / 2 + 0.03);
+      if (!touch) { add('warn', 'wall-free', 'Wall ' + w.id + ' has a disconnected end near (' + f2(p[0]) + ', ' + f2(p[1]) + ').', { type: 'wall', id: w.id }, '|' + f2(p[0]) + ',' + f2(p[1])); break; }
+    }
+  }
+  for (const r of rooms) {
+    if (isZone(plan, r)) continue;
+    const q = rectOf(r); if (!(q.w > 0 && q.d > 0)) continue;
+    let gap = null;
+    const pts = [];
+    for (let s = 0.125; s < q.w; s += 0.25) { pts.push([q.x + s, q.z]); pts.push([q.x + s, q.z + q.d]); }
+    for (let s = 0.125; s < q.d; s += 0.25) { pts.push([q.x, q.z + s]); pts.push([q.x + q.w, q.z + s]); }
+    for (const p of pts) {
+      const ok = walls.some(w => segDist(p[0], p[1], w.x1, w.z1, w.x2, w.z2).d <= wallInfo(plan, w).t / 2 + 0.06);
+      if (!ok) { gap = p; break; }
+    }
+    if (gap) add('warn', 'room-gap', roomName(r) + ': boundary has no wall near (' + f2(gap[0]) + ', ' + f2(gap[1]) + '). Use “Rebuild walls” or add a wall.', { type: 'room', id: r.id });
+  }
+  // doors
+  const byHost = {};
+  for (const d of doors) {
+    const T = { type: 'door', id: d.id };
+    if (!(d.width > 0) || !(d.height > 0)) add('error', 'door-dim', dn(d) + ': width and height must be positive.', T);
+    const w = wallById(plan, d.hostWallId);
+    if (!w) { add('error', 'door-nohost', dn(d) + ' has no valid host wall (its location is no longer on a wall). Drag it onto a wall or delete it.', T); continue; }
+    const i = wallInfo(plan, w);
+    (byHost[w.id] = byHost[w.id] || []).push(d);
+    if (d.width > i.len + 1e-6) add('error', 'door-wide', dn(d) + ' is ' + f2(d.width) + ' m wide but its host wall is only ' + f2(i.len) + ' m long. The visible opening is clipped.', T);
+    else if (d.offset - d.width / 2 < -1e-6 || d.offset + d.width / 2 > i.len + 1e-6) add('warn', 'door-ends', dn(d) + ' extends beyond the end of its host wall; the visible opening is clipped.', T);
+    if (d.height > i.H + 1e-6) add('warn', 'door-tall', dn(d) + ' (' + f2(d.height) + ' m) is taller than its wall (' + f2(i.H) + ' m); the opening is clipped to wall height.', T);
+    if (d.uncertain) add('info', 'door-unc', dn(d) + ': ' + (d.note || 'uncertain placement.'), T);
+  }
+  for (const [wid, ds] of Object.entries(byHost)) {
+    for (let i = 0; i < ds.length; i++) for (let j = i + 1; j < ds.length; j++) {
+      const a = ds[i], b = ds[j];
+      if (Math.abs(a.offset - b.offset) < (a.width + b.width) / 2 - 1e-6) add('warn', 'door-overlap', dn(a) + ' and ' + dn(b) + ' overlap on wall ' + wid + '.', { type: 'door', id: a.id }, '|' + b.id);
+    }
+  }
+  // equipment against door openings and immediate approaches (1 m each side)
+  for (const e of plan.equipment) {
+    if (e.hidden || (e.elev || 0) >= 1.8) continue;
+    const P = eqPoly(e);
+    for (const d of doors) {
+      const Z = doorZone(plan, d); if (!Z) continue;
+      if (polyIntersect(P, Z)) add('warn', 'equip-door', (e.name || e.type) + ' blocks the opening or 1 m approach of ' + dn(d) + '.', { type: 'equip', id: e.id }, '|' + d.id);
+    }
+  }
+  // convention note
+  const t = st.wallThickness;
+  if (st.convention !== 'centerline') add('info', 'convention', 'Dimension convention is “' + (st.convention === 'inside' ? 'clear inside' : 'outside faces') + '”, but rooms are laid out on a shared centerline grid; modeled clear inside sizes are ' + f2(t) + ' m smaller than modeled centerline sizes.', null);
+  return out;
+}
+function issueCounts(issues) { return { e: issues.filter(i => i.sev === 'error').length, w: issues.filter(i => i.sev === 'warn').length, i: issues.filter(i => i.sev === 'info').length }; }
+
+/* ---------------------------------------------------------------------
+   5. PERSISTENCE: sanitising, export, import, local storage
+   --------------------------------------------------------------------- */
+function sanitizePlan(raw) {
+  const errs = [];
+  const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
+  if (!isObj(raw)) throw new Error('The file does not contain a plan object.');
+  for (const k of ['rooms', 'walls', 'doors', 'equipment']) if (!Array.isArray(raw[k])) errs.push('Missing array “' + k + '”.');
+  if (errs.length) throw new Error(errs.join(' '));
+  const num = (v, def, lo, hi, label) => {
+    if (v === undefined || v === null) return def;
+    if (typeof v !== 'number' || !isFinite(v)) { errs.push(label + ' is not a finite number.'); return def; }
+    if ((lo != null && v < lo) || (hi != null && v > hi)) { errs.push(label + ' is out of range (' + v + ').'); return def; }
+    return v;
+  };
+  const str = (v, def) => typeof v === 'string' ? v.slice(0, 500) : def;
+  const bool = (v, def) => typeof v === 'boolean' ? v : def;
+  const col = (v, def) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : def;
+  const sIn = isObj(raw.settings) ? raw.settings : {};
+  const settings = {
+    wallThickness: num(sIn.wallThickness, DEFAULT_SETTINGS.wallThickness, 0.01, 1, 'settings.wallThickness'),
+    wallHeight: num(sIn.wallHeight, DEFAULT_SETTINGS.wallHeight, 0.5, 5, 'settings.wallHeight'),
+    doorWidth: num(sIn.doorWidth, DEFAULT_SETTINGS.doorWidth, 0.3, 4, 'settings.doorWidth'),
+    doorHeight: num(sIn.doorHeight, DEFAULT_SETTINGS.doorHeight, 0.5, 5, 'settings.doorHeight'),
+    convention: ['centerline', 'inside', 'outside'].includes(sIn.convention) ? sIn.convention : 'centerline',
+    gridSize: num(sIn.gridSize, 0.5, 0.05, 5, 'settings.gridSize'),
+    snapGrid: bool(sIn.snapGrid, true), snapCorners: bool(sIn.snapCorners, true)
+  };
+  const ids = new Set(), uid = (v, label) => { if (typeof v !== 'string' || !v) { errs.push(label + ' has no id.'); return 'bad'; } if (ids.has(v)) errs.push('Duplicate id “' + v + '”.'); ids.add(v); return v; };
+  const plan = { seq: 0, settings, rooms: [], walls: [], doors: [], equipment: [] };
+  raw.rooms.forEach((r, n) => {
+    if (!isObj(r)) { errs.push('Room #' + (n + 1) + ' is not an object.'); return; }
+    const L = num(r.L, NaN, 0.01, 500, 'room[' + n + '].L'), W = num(r.W, NaN, 0.01, 500, 'room[' + n + '].W');
+    if (!isFinite(L) || !isFinite(W)) { errs.push('Room #' + (n + 1) + ' needs finite positive L and W.'); return; }
+    const cat = CATEGORIES[r.category] ? r.category : 'other';
+    const o = {
+      id: uid(r.id, 'Room #' + (n + 1)), nameEn: str(r.nameEn, 'Room'), nameAr: str(r.nameAr, ''), category: cat, L, W,
+      rot: r.rot === 90 ? 90 : 0, x: num(r.x, 0, -1e4, 1e4, 'room.x'), z: num(r.z, 0, -1e4, 1e4, 'room.z'),
+      linkModel: bool(r.linkModel, true), modeled: { w: L, d: W },
+      floorColor: col(r.floorColor, CATEGORIES[cat].floor), floorMaterial: FLOOR_MATS[r.floorMaterial] ? r.floorMaterial : 'concrete',
+      showLabel: bool(r.showLabel, true), locked: bool(r.locked, false), notes: str(r.notes, ''), approx: str(r.approx, ''),
+      zoneOf: typeof r.zoneOf === 'string' ? r.zoneOf : null,
+      anchor: r.anchor && isFinite(r.anchor.fx) && isFinite(r.anchor.fz) ? { fx: clamp(r.anchor.fx, 0, 1), fz: clamp(r.anchor.fz, 0, 1) } : null
+    };
+    if (isObj(r.modeled)) o.modeled = { w: num(r.modeled.w, L, 0.01, 500, 'room.modeled.w'), d: num(r.modeled.d, W, 0.01, 500, 'room.modeled.d') };
+    const rf = isObj(r.ref) ? r.ref : {};
+    o.ref = {
+      L: num(rf.L, L, 0.01, 500, 'ref.L'), W: num(rf.W, W, 0.01, 500, 'ref.W'), rot: rf.rot === 90 ? 90 : 0,
+      x: num(rf.x, o.x, -1e4, 1e4, 'ref.x'), z: num(rf.z, o.z, -1e4, 1e4, 'ref.z'), area: 0,
+      nameEn: str(rf.nameEn, o.nameEn), nameAr: str(rf.nameAr, o.nameAr), category: CATEGORIES[rf.category] ? rf.category : cat,
+      floorColor: col(rf.floorColor, o.floorColor), floorMaterial: FLOOR_MATS[rf.floorMaterial] ? rf.floorMaterial : o.floorMaterial
+    };
+    o.ref.area = r2(o.ref.L * o.ref.W);
+    plan.rooms.push(o);
+  });
+  raw.walls.forEach((w, n) => {
+    if (!isObj(w)) { errs.push('Wall #' + (n + 1) + ' is not an object.'); return; }
+    const o = {
+      id: uid(w.id, 'Wall #' + (n + 1)), x1: num(w.x1, NaN, -1e4, 1e4, 'wall.x1'), z1: num(w.z1, NaN, -1e4, 1e4, 'wall.z1'),
+      x2: num(w.x2, NaN, -1e4, 1e4, 'wall.x2'), z2: num(w.z2, NaN, -1e4, 1e4, 'wall.z2'),
+      owners: Array.isArray(w.owners) ? w.owners.filter(x => typeof x === 'string') : [],
+      thickness: w.thickness == null ? null : num(w.thickness, null, 0.01, 1, 'wall.thickness'),
+      height: w.height == null ? null : num(w.height, null, 0.3, 6, 'wall.height'),
+      color: w.color == null ? null : col(w.color, null), material: WALL_MATS[w.material] ? w.material : 'plaster',
+      exterior: bool(w.exterior, false), exteriorSet: bool(w.exteriorSet, false), manual: bool(w.manual, false), locked: bool(w.locked, false), note: str(w.note, '')
+    };
+    if (![o.x1, o.z1, o.x2, o.z2].every(isFinite)) { errs.push('Wall #' + (n + 1) + ' has invalid coordinates.'); return; }
+    plan.walls.push(o);
+  });
+  raw.doors.forEach((d, n) => {
+    if (!isObj(d)) { errs.push('Door #' + (n + 1) + ' is not an object.'); return; }
+    const o = {
+      id: uid(d.id, 'Door #' + (n + 1)), hostWallId: typeof d.hostWallId === 'string' ? d.hostWallId : null,
+      offset: num(d.offset, 0, -1e3, 1e4, 'door.offset'), width: num(d.width, settings.doorWidth, 0.05, 20, 'door.width'), height: num(d.height, settings.doorHeight, 0.1, 10, 'door.height'),
+      type: ['single', 'double', 'sliding'].includes(d.type) ? d.type : 'single', swing: d.swing === -1 ? -1 : 1, hinge: d.hinge === 'end' ? 'end' : 'start',
+      color: col(d.color, '#8b5e3c'), frameColor: col(d.frameColor, '#4a4f57'), material: DOOR_MATS[d.material] ? d.material : 'wood',
+      sideA: str(d.sideA, ''), sideB: str(d.sideB, ''), refNo: Number.isInteger(d.refNo) ? d.refNo : null, note: str(d.note, ''),
+      uncertain: bool(d.uncertain, false), locked: bool(d.locked, false), ax: num(d.ax, 0, -1e4, 1e4, 'door.ax'), az: num(d.az, 0, -1e4, 1e4, 'door.az')
+    };
+    plan.doors.push(o);
+  });
+  raw.equipment.forEach((e, n) => {
+    if (!isObj(e)) { errs.push('Equipment #' + (n + 1) + ' is not an object.'); return; }
+    const type = LIB[e.type] ? e.type : null;
+    if (!type) { errs.push('Equipment #' + (n + 1) + ' has unknown type “' + e.type + '”.'); return; }
+    plan.equipment.push({
+      id: uid(e.id, 'Equipment #' + (n + 1)), type, name: str(e.name, LIB[type].label),
+      x: num(e.x, 0, -1e4, 1e4, 'eq.x'), z: num(e.z, 0, -1e4, 1e4, 'eq.z'),
+      w: num(e.w, LIB[type].w, 0.05, 50, 'eq.w'), d: num(e.d, LIB[type].d, 0.05, 50, 'eq.d'), h: num(e.h, LIB[type].h, 0.05, 10, 'eq.h'),
+      elev: num(e.elev, 0, 0, 10, 'eq.elev'), rot: num(e.rot, 0, -3600, 3600, 'eq.rot'), color: col(e.color, LIB[type].color),
+      hidden: bool(e.hidden, false), locked: bool(e.locked, false)
+    });
+  });
+  if (!plan.rooms.length) errs.push('The plan contains no valid rooms.');
+  /* Sub-zones: a zone must sit inside an existing, non-zone room. Stale references (e.g. the parent was deleted) are cleared; self-reference and chains are rejected. */
+  for (const r of plan.rooms) {
+    if (!r.zoneOf) continue;
+    if (r.zoneOf === r.id) { errs.push('Room “' + r.id + '” cannot be a zone of itself.'); continue; }
+    const par = plan.rooms.find(x => x.id === r.zoneOf);
+    if (!par) r.zoneOf = null;
+    else if (par.zoneOf) errs.push('Room “' + r.id + '” is a zone of “' + par.id + '”, which is itself a zone (zones cannot be nested).');
+  }
+  for (const d of plan.doors) {
+    if (d.hostWallId && !plan.walls.some(w => w.id === d.hostWallId)) {
+      d.hostWallId = null;
+      const b = nearestWall(plan, d.ax, d.az, 0.25);
+      if (b) { d.hostWallId = b.wall.id; d.offset = b.offset; }
+    }
+  }
+  if (errs.length) throw new Error(errs.slice(0, 8).join('\n') + (errs.length > 8 ? '\n…and ' + (errs.length - 8) + ' more problems.' : ''));
+  let mx = 0;
+  for (const id of ids) { const m = /-(\d+)$/.exec(id); if (m) mx = Math.max(mx, +m[1]); }
+  plan.seq = Math.max(mx, Number.isInteger(raw.seq) ? raw.seq : 0, 100);
+  return plan;
+}
+function sanitizeDisplay(raw) {
+  const d = { ...DEFAULT_DISPLAY };
+  if (!raw || typeof raw !== 'object') return d;
+  for (const k of Object.keys(DEFAULT_DISPLAY)) {
+    const v = raw[k], def = DEFAULT_DISPLAY[k];
+    if (typeof v === typeof def) {
+      if (typeof def === 'string' && /^#/.test(def)) { if (/^#[0-9a-fA-F]{6}$/.test(v)) d[k] = v; }
+      else if (typeof def === 'number') { if (isFinite(v)) d[k] = clamp(v, 0, 3); }
+      else d[k] = v;
+    }
+  }
+  if (!['both', 'en', 'ar'].includes(d.labelLang)) d.labelLang = 'both';
+  if (!['solid', 'wire', 'xray'].includes(d.mode3d)) d.mode3d = 'solid';
+  return d;
+}
+function exportObject() {
+  const cam3 = S.v3 && S.v3.get ? S.v3.get() : null;
+  return {
+    format: FORMAT, version: FORMAT_VERSION, exportedAt: new Date().toISOString(), units: 'meters (1 Three.js unit = 1 m)',
+    note: 'Schematic planning model. Not a construction document.',
+    plan: JSON.parse(JSON.stringify(S.plan)), display: JSON.parse(JSON.stringify(S.display)), camera2d: S.cam2 ? JSON.parse(JSON.stringify(S.cam2)) : S.cam2, camera3d: cam3,
+    assumptions: staticAssumptions(S.plan).map(a => a[0] + ': ' + a[1])
+  };
+}
+function parseImport(text) {
+  let obj;
+  try { obj = JSON.parse(text); } catch (e) { throw new Error('The file is not valid JSON (' + e.message + ').'); }
+  if (!obj || obj.format !== FORMAT) throw new Error('This is not a plan exported by this editor (missing format “' + FORMAT + '”).');
+  if (typeof obj.version !== 'number' || obj.version > FORMAT_VERSION) throw new Error('Unsupported plan version: ' + obj.version + '.');
+  const plan = sanitizePlan(obj.plan);
+  return { plan, display: sanitizeDisplay(obj.display), cam2: obj.camera2d, cam3: obj.camera3d };
+}
+let saveTimer = 0, saveWarned = false;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(exportObject())); }
+    catch (e) { if (!saveWarned) { saveWarned = true; toast('Automatic saving to this browser failed (' + e.message + '). Use Export JSON for a backup.', true); } }
+  }, 400);
+}
+function loadSaved() {
+  try {
+    const t = localStorage.getItem(LS_KEY); if (!t) return null;
+    return parseImport(t);
+  } catch (e) { console.warn('Stored plan ignored:', e); return null; }
+}
+/* ---------------------------------------------------------------------
+   STATE PLUMBING: undo/redo, selection, toasts, modal, edit helpers
+   --------------------------------------------------------------------- */
+const snap = () => JSON.stringify(S.plan);
+function changed(o) {
+  S.dirty2d = S.dirty3d = S.dirtyUI = true;
+  if (!o || !o.live) S.dirtyInsp = true;
+  scheduleSave();
+}
+function pushUndo(s) {
+  S.undo.push(s || snap());
+  if (S.undo.length > 150) S.undo.shift();
+  S.redo.length = 0;
+  S.dirtyUI = true;
+}
+function restore(json) {
+  S.plan = JSON.parse(json);
+  if (S.sel && !findSel(S.sel)) S.sel = null;
+  S.dirtyInsp = true; changed();
+}
+function undo() { if (!S.undo.length) { toast('Nothing to undo'); return; } S.redo.push(snap()); restore(S.undo.pop()); }
+function redo() { if (!S.redo.length) { toast('Nothing to redo'); return; } S.undo.push(snap()); restore(S.redo.pop()); }
+function findSel(s) {
+  if (!s) return null;
+  const P = S.plan;
+  return ({ room: roomById, wall: wallById, door: doorById, equip: equipById })[s.type](P, s.id) || null;
+}
+function selObj() { return findSel(S.sel); }
+function select(type, id) {
+  S.sel = type ? { type, id } : null;
+  S.dirty2d = S.dirty3d = S.dirtyUI = S.dirtyInsp = true;
+  if (S.v3) S.v3.selectionChanged();
+}
+
+function toast(msg, isErr) {
+  const box = $('#toast'); if (!box) return;
+  const same = [...box.children].find(c => c.textContent === msg);
+  if (same) { same.remove(); }
+  const n = h('div', { class: isErr ? 'err' : '' }, msg);
+  box.append(n);
+  while (box.children.length > 3) box.firstElementChild.remove();
+  setTimeout(() => n.remove(), isErr ? 6000 : 2800);
+}
+let modalResolve = null;
+function closeModal(v) {
+  $('#modalback').classList.remove('show');
+  const r = modalResolve; modalResolve = null; if (r) r(v);
+}
+function modal(title, bodyNodes, buttons) {
+  if (modalResolve) closeModal('cancel');
+  return new Promise(res => {
+    modalResolve = res;
+    $('#modal').replaceChildren(h('h2', {}, title), ...[].concat(bodyNodes),
+      h('div', { class: 'btns', style: { justifyContent: 'flex-end' } },
+        buttons.map(b => h('button', { class: 'btn ' + (b.cls || ''), onclick: () => closeModal(b.value) }, b.label))));
+    $('#modalback').classList.add('show');
+    const first = $('#modal .btn.pri') || $('#modal .btn'); if (first) first.focus();
+  });
+}
+const confirmDlg = (title, text, okLabel) => modal(title, h('p', {}, text), [{ label: 'Cancel', value: 'cancel' }, { label: okLabel || 'OK', value: 'ok', cls: 'pri' }]).then(v => v === 'ok');
+
+/* Review the consequences of a structural edit that has already been applied to
+   S.plan. New warnings/errors are listed; the user may apply, cancel (restore) or,
+   for moves, carry the room's own doors along. Returns true when kept. */
+async function reviewChange(before, opts) {
+  opts = opts || {};
+  const prev = new Set(validate(JSON.parse(before)).map(i => i.key));
+  const fresh = validate(S.plan).filter(i => i.sev !== 'info' && !prev.has(i.key));
+  if (!fresh.length) { pushUndo(before); changed(); return true; }
+  const body = [h('p', {}, 'This edit affects shared walls, doors or neighbouring geometry. Nothing else was moved automatically. Resulting issues:'),
+    h('ul', {}, fresh.slice(0, 10).map(i => h('li', {}, i.msg)), fresh.length > 10 ? h('li', {}, '…and ' + (fresh.length - 10) + ' more (see the Checks panel).') : null)];
+  const buttons = [{ label: 'Cancel (undo this edit)', value: 'cancel' }];
+  if (opts.carry && opts.carry.doorIds.length) buttons.push({ label: 'Apply and carry ' + opts.carry.doorIds.length + ' door(s) with the room', value: 'carry' });
+  buttons.push({ label: 'Apply and keep editing', value: 'apply', cls: 'pri' });
+  const v = await modal('Apply this edit?', body, buttons);
+  if (v === 'cancel' || v == null) { S.plan = JSON.parse(before); if (S.sel && !findSel(S.sel)) S.sel = null; S.dirtyInsp = true; changed(); toast('Edit cancelled'); return false; }
+  if (v === 'carry') {
+    for (const id of opts.carry.doorIds) { const d = doorById(S.plan, id); if (d) { d.ax = r3(d.ax + opts.carry.dx); d.az = r3(d.az + opts.carry.dz); } }
+    rehostDoors(S.plan);
+  }
+  pushUndo(before); changed(); return true;
+}
+/* Simple (non-structural) edit with undo. */
+function edit(fn) { pushUndo(); fn(S.plan); changed(); }
+/* Live edit used by sliders: one undo entry per drag. */
+let liveUndo = false;
+function liveEdit(fn) { if (!liveUndo) { pushUndo(); liveUndo = true; } fn(S.plan); changed({ live: true }); }
+function liveEnd() { liveUndo = false; S.dirtyInsp = true; }
+
+/* ---------------------------------------------------------------------
+   MODEL ACTIONS (rooms, walls, doors, equipment)
+   --------------------------------------------------------------------- */
+function lockedCheck(o, what) { if (o && o.locked) { toast((what || 'Object') + ' is locked. Unlock it in the Inspector to edit.', true); return true; } return false; }
+
+/* Structural room patch: applies, rebuilds walls, reviews consequences. */
+async function patchRoom(room, patch, opts) {
+  if (lockedCheck(room, 'Room')) return false;
+  if (patch && patch.zoneOf) {
+    const par = S.plan.rooms.find(x => x.id === patch.zoneOf);
+    if (!par || par === room || par.zoneOf || S.plan.rooms.some(x => x.zoneOf === room.id)) { toast('A zone must sit inside an ordinary room, and a room that holds zones cannot itself become a zone.', true); S.dirtyInsp = true; return false; }
+  }
+  const before = snap(); const id = room.id;
+  const f0 = fp(room);
+  Object.assign(room, patch);
+  if (patch.modeled) room.modeled = { ...patch.modeled };
+  if (room.linkModel) { const e = stExt(room); room.modeled = { w: e.w, d: e.d }; }
+  rebuildWalls(S.plan);
+  const carry = { doorIds: S.plan.doors.filter(d => onRoomEdge(d, before, id)).map(d => d.id), dx: room.x - JSON.parse(before).rooms.find(r => r.id === id).x, dz: room.z - JSON.parse(before).rooms.find(r => r.id === id).z };
+  changed();
+  return reviewChange(before, { carry: (opts && opts.carry) ? carry : null });
+}
+function onRoomEdge(d, beforeJson, roomId) {
+  const r = JSON.parse(beforeJson).rooms.find(q => q.id === roomId); if (!r) return false;
+  const f = r.linkModel ? stExt(r) : r.modeled, tol = 0.06;
+  const inX = d.ax >= r.x - tol && d.ax <= r.x + f.w + tol, inZ = d.az >= r.z - tol && d.az <= r.z + f.d + tol;
+  const onV = inZ && (Math.abs(d.ax - r.x) < tol || Math.abs(d.ax - (r.x + f.w)) < tol);
+  const onH = inX && (Math.abs(d.az - r.z) < tol || Math.abs(d.az - (r.z + f.d)) < tol);
+  return onV || onH;
+}
+function setStated(room, L, W) {
+  return patchRoom(room, { L: r3(L), W: r3(W) });
+}
+function rotateRoom(room) {
+  if (lockedCheck(room, 'Room')) return;
+  const f = fp(room), cx = room.x + f.w / 2, cz = room.z + f.d / 2, nr = room.rot === 90 ? 0 : 90;
+  const nf = room.linkModel ? stExt({ ...room, rot: nr }) : { w: f.d, d: f.w };
+  return patchRoom(room, { rot: nr, x: r2(cx - nf.w / 2), z: r2(cz - nf.d / 2), modeled: nf });
+}
+function roomUnique(base) {
+  let n = 1, name;
+  do { name = base + ' ' + (n++); } while (S.plan.rooms.some(r => r.nameEn === name));
+  return name;
+}
+async function addRoomRect(x, z, w, d) {
+  w = Math.max(0.5, r2(w)); d = Math.max(0.5, r2(d));
+  const before = snap();
+  const horiz = w >= d;
+  const room = makeRoom(S.plan, { nameEn: roomUnique('New room'), nameAr: 'غرفة جديدة', category: 'other', L: horiz ? w : d, W: horiz ? d : w, rot: horiz ? 0 : 90, x: r2(x), z: r2(z) });
+  S.plan.rooms.push(room); rebuildWalls(S.plan); changed();
+  const ok = await reviewChange(before);
+  if (ok) { select('room', room.id); toast('Room added: edit its name and size in the Inspector'); }
+}
+async function duplicateRoom(room) {
+  const before = snap();
+  const c = makeRoom(S.plan, { nameEn: room.nameEn + ' copy', nameAr: room.nameAr, category: room.category, L: room.L, W: room.W, rot: room.rot, x: r2(room.x + 2), z: r2(room.z + 2), floorColor: room.floorColor, floorMaterial: room.floorMaterial, notes: room.notes });
+  c.linkModel = room.linkModel; c.modeled = { ...room.modeled };
+  S.plan.rooms.push(c); rebuildWalls(S.plan); changed();
+  if (await reviewChange(before)) select('room', c.id);
+}
+async function deleteRoom(room) {
+  if (lockedCheck(room, 'Room')) return;
+  const before = snap();
+  S.plan.rooms = S.plan.rooms.filter(r => r !== room);
+  const freed = S.plan.rooms.filter(r => r.zoneOf === room.id);
+  freed.forEach(r => { r.zoneOf = null; });
+  rebuildWalls(S.plan); S.sel = null; changed(); S.dirtyInsp = true;
+  if (await reviewChange(before)) toast('Room deleted (undo available)' + (freed.length ? '. ' + freed.length + ' zone(s) inside it became ordinary rooms with their own walls.' : ''));
+  else select('room', room.id);
+}
+async function resetRoom(room) {
+  if (lockedCheck(room, 'Room')) return;
+  const rf = room.ref, before = snap();
+  Object.assign(room, { L: rf.L, W: rf.W, rot: rf.rot, x: rf.x, z: rf.z, linkModel: true, nameEn: rf.nameEn, nameAr: rf.nameAr, category: rf.category, floorColor: rf.floorColor, floorMaterial: rf.floorMaterial, showLabel: true });
+  const e = stExt(room); room.modeled = { w: e.w, d: e.d };
+  rebuildWalls(S.plan); changed();
+  if (await reviewChange(before)) toast(room.nameEn + ' reset to ' + f2(rf.L) + ' × ' + f2(rf.W) + ' m (' + f2(rf.L * rf.W) + ' m²)');
+}
+async function rebuildAllWalls() {
+  const before = snap();
+  rebuildWalls(S.plan); changed();
+  if (await reviewChange(before)) toast('Generated walls rebuilt from rooms (manual walls kept)');
+}
+
+/* walls */
+async function patchWall(w, patch) {
+  if (lockedCheck(w, 'Wall')) return false;
+  const before = snap();
+  Object.assign(w, patch);
+  if (!w.manual) { w.manual = true; w.note = (w.note ? w.note + ' ' : '') + '(geometry edited manually; kept when walls are rebuilt)'; }
+  syncAnchors(S.plan); changed();
+  return reviewChange(before);
+}
+function addManualWall(x1, z1, x2, z2) {
+  if (Math.hypot(x2 - x1, z2 - z1) < 0.2) { toast('Wall too short — click two distinct points', true); return; }
+  pushUndo();
+  const w = newWall(S.plan, { x1: r2(x1), z1: r2(z1), x2: r2(x2), z2: r2(z2), owners: [] }, true, { exterior: false, note: 'Added manually.' });
+  S.plan.walls.push(w); changed(); select('wall', w.id);
+}
+function deleteWall(w) {
+  if (lockedCheck(w, 'Wall')) return;
+  const before = snap();
+  S.plan.walls = S.plan.walls.filter(x => x !== w);
+  rehostDoors(S.plan); S.sel = null; changed();
+  reviewChange(before).then(ok => { if (!ok) select('wall', w.id); });
+}
+
+/* doors */
+function addDoorAt(x, z) {
+  const nb = nearestWall(S.plan, x, z, Math.max(0.5, 10 / S.cam2.scale));
+  if (!nb) { toast('Click on a wall to place a door', true); return; }
+  const info = wallInfo(S.plan, nb.wall), s = S.plan.settings;
+  if (info.len < s.doorWidth + 0.1) { toast('That wall segment (' + f2(info.len) + ' m) is too short for a ' + f2(s.doorWidth) + ' m door.', true); return; }
+  const off = clamp(r2(nb.offset), s.doorWidth / 2, info.len - s.doorWidth / 2);
+  pushUndo();
+  const d = newDoor(S.plan, nb.wall.id, off, { uncertain: false, note: 'Added by user.' });
+  changed(); select('door', d.id);
+}
+function moveDoorTo(d, x, z, snapStep) {
+  const nb = nearestWall(S.plan, x, z, 0.9, d.hostWallId); if (!nb) return;
+  const len = Math.hypot(nb.wall.x2 - nb.wall.x1, nb.wall.z2 - nb.wall.z1);
+  let off = nb.offset; if (snapStep) off = Math.round(off / snapStep) * snapStep;
+  d.hostWallId = nb.wall.id; d.offset = r3(clamp(off, 0, len));
+  const p = wallPoint(nb.wall, d.offset); d.ax = r3(p.x); d.az = r3(p.z);
+}
+function duplicateDoor(d) {
+  const w = wallById(S.plan, d.hostWallId); if (!w) { toast('This door has no host wall', true); return; }
+  pushUndo();
+  const len = wallInfo(S.plan, w).len;
+  let off = d.offset + d.width + 0.3; if (off > len) off = d.offset - d.width - 0.3;
+  const c = newDoor(S.plan, w.id, clamp(off, 0, len), { width: d.width, height: d.height, type: d.type, swing: d.swing, hinge: d.hinge, color: d.color, frameColor: d.frameColor, material: d.material, sideA: d.sideA, sideB: d.sideB, note: 'Duplicate of ' + (d.refNo ? 'door ' + d.refNo : d.id) });
+  changed(); select('door', c.id);
+}
+function deleteDoor(d) {
+  if (lockedCheck(d, 'Door')) return;
+  pushUndo(); S.plan.doors = S.plan.doors.filter(x => x !== d); S.sel = null; changed();
+  toast('Door deleted (undo available)');
+}
+
+/* equipment */
+function addEquipment(type, x, z) {
+  pushUndo();
+  const e = eqItem(S.plan, type, r2(x), r2(z), 0); S.plan.equipment.push(e); changed(); select('equip', e.id);
+}
+function duplicateEquipment(e) {
+  pushUndo();
+  const c = { ...e, id: nid(S.plan, 'eq'), x: r2(e.x + 0.3), z: r2(e.z + 0.3), locked: false };
+  S.plan.equipment.push(c); changed(); select('equip', c.id);
+}
+function deleteEquipment(e) {
+  if (lockedCheck(e, 'Equipment')) return;
+  pushUndo(); S.plan.equipment = S.plan.equipment.filter(x => x !== e); S.sel = null; changed();
+}
+
+function deleteSelection() {
+  const o = selObj(); if (!o) { toast('Select something to delete'); return; }
+  ({ room: deleteRoom, wall: deleteWall, door: deleteDoor, equip: deleteEquipment })[S.sel.type](o);
+}
+function duplicateSelection() {
+  const o = selObj(); if (!o) { toast('Select something to duplicate'); return; }
+  ({ room: duplicateRoom, door: duplicateDoor, equip: duplicateEquipment, wall: w => {
+    addManualWall(w.x1 + 0.5, w.z1 + 0.5, w.x2 + 0.5, w.z2 + 0.5);
+  } })[S.sel.type](o);
+}
+function nudgeSelection(dx, dz) {
+  const o = selObj(); if (!o) return;
+  if (S.sel.type === 'room') patchRoom(o, { x: r2(o.x + dx), z: r2(o.z + dz) }, { carry: true });
+  else if (S.sel.type === 'equip') { if (lockedCheck(o, 'Equipment')) return; edit(() => { o.x = r2(o.x + dx); o.z = r2(o.z + dz); }); }
+  else if (S.sel.type === 'wall') patchWall(o, { x1: r2(o.x1 + dx), z1: r2(o.z1 + dz), x2: r2(o.x2 + dx), z2: r2(o.z2 + dz) });
+  else if (S.sel.type === 'door') { if (lockedCheck(o, 'Door')) return; const w = wallById(S.plan, o.hostWallId); if (!w) return; const i = wallInfo(S.plan, w); edit(() => { o.offset = r3(clamp(o.offset + dx * i.ux + dz * i.uz, 0, i.len)); syncAnchors(S.plan); }); }
+}
+
+async function resetAll() {
+  const ok = await confirmDlg('Reset the complete plan?', 'All rooms, walls, doors, equipment and settings return to the initial reference plan (kitchen 9 × 8 m, lower-left dining hall 14 × 9 m, corridor 16 × 2 m). You can still use Undo.', 'Reset plan');
+  if (!ok) return;
+  pushUndo(); S.plan = makeDefaultPlan(); S.sel = null; changed(); S.dirtyInsp = true;
+  if (S.v3) S.v3.fitCamera(true);
+  fit2D(); toast('Plan reset to the initial reference');
+}
+/* ---------------------------------------------------------------------
+   6. 2D FLOOR-PLAN EDITOR (canvas)
+   --------------------------------------------------------------------- */
+const V2 = { cv: null, ctx: null, w: 0, h: 0, dpr: 1, pointers: new Map(), drag: null, space: false, mouse: { x: 0, z: 0 }, wallStart: null, hover: null, pinch: null, snapMark: null };
+const HANDLE_PX = 8;
+const TOOL_HINTS = {
+  select: 'Select: click an object · drag to move · drag handles to resize · empty drag pans · wheel zooms',
+  move: 'Move: drag any unlocked object. Arrow keys nudge (Shift = fine).',
+  resize: 'Resize: select an object, then drag its square handles (rooms, walls, equipment).',
+  rotate: 'Rotate: click a room (90°) or equipment (90°, Shift = −90°); drag the round handle for free angles.',
+  addRoom: 'Add room: drag a rectangle on the plan (or click for a 4 × 3 m room).',
+  addWall: 'Add wall: click start point, then end point. Esc cancels.',
+  addDoor: 'Add door: click on a wall. The opening is cut into that wall.',
+  addEquip: 'Add equipment: choose a type in the Library tab, then click to place.'
+};
+const toS = (x, z) => [(x - S.cam2.cx) * S.cam2.scale + V2.w / 2, (z - S.cam2.cz) * S.cam2.scale + V2.h / 2];
+const toW = (px, py) => [(px - V2.w / 2) / S.cam2.scale + S.cam2.cx, (py - V2.h / 2) / S.cam2.scale + S.cam2.cz];
+
+function resize2D() {
+  const pane = $('#pane2d'), w = pane.clientWidth, hh = pane.clientHeight;
+  if (!w || !hh) return;
+  V2.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  V2.w = w; V2.h = hh;
+  V2.cv.width = Math.round(w * V2.dpr); V2.cv.height = Math.round(hh * V2.dpr);
+  S.dirty2d = true;
+  if (V2.needFit || !V2.userView) { V2.needFit = false; fit2D(); }
+}
+function planBounds() {
+  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+  for (const r of S.plan.rooms) { const q = rectOf(r); x0 = Math.min(x0, q.x); z0 = Math.min(z0, q.z); x1 = Math.max(x1, q.x + q.w); z1 = Math.max(z1, q.z + q.d); }
+  if (!isFinite(x0)) { x0 = 0; z0 = 0; x1 = 10; z1 = 10; }
+  return { x0, z0, x1, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0 };
+}
+function fit2D() {
+  if (!V2.w) { V2.needFit = true; return; }
+  const b = planBounds();
+  S.cam2.scale = clamp(Math.min((V2.w - 50) / Math.max(b.w, 1), (V2.h - 50) / Math.max(b.d, 1)), 3, 140);
+  S.cam2.cx = b.cx; S.cam2.cz = b.cz; S.dirty2d = true; V2.userView = false;
+}
+function zoomAt(px, py, k) {
+  const [wx, wz] = toW(px, py);
+  S.cam2.scale = clamp(S.cam2.scale * k, 3, 160);
+  S.cam2.cx = wx - (px - V2.w / 2) / S.cam2.scale; S.cam2.cz = wz - (py - V2.h / 2) / S.cam2.scale;
+  S.dirty2d = true; V2.userView = true;
+}
+
+/* ---- snapping ---- */
+function snapTargets(exId) {
+  const xs = [], zs = [], pts = [];
+  for (const r of S.plan.rooms) {
+    if (r.id === exId) continue;
+    const q = rectOf(r); xs.push(q.x, q.x + q.w); zs.push(q.z, q.z + q.d);
+    pts.push([q.x, q.z], [q.x + q.w, q.z], [q.x, q.z + q.d], [q.x + q.w, q.z + q.d]);
+  }
+  for (const w of S.plan.walls) { pts.push([w.x1, w.z1], [w.x2, w.z2]); xs.push(w.x1, w.x2); zs.push(w.z1, w.z2); }
+  return { xs, zs, pts };
+}
+function snapPt(x, z, exId) {
+  const s = S.plan.settings, tol = 11 / S.cam2.scale;
+  if (s.snapCorners) {
+    let best = null, bd = tol;
+    for (const p of snapTargets(exId).pts) { const d = Math.hypot(p[0] - x, p[1] - z); if (d < bd) { bd = d; best = p; } }
+    if (best) { V2.snapMark = { x: best[0], z: best[1] }; return { x: best[0], z: best[1] }; }
+  }
+  V2.snapMark = null;
+  if (s.snapGrid) return { x: Math.round(x / s.gridSize) * s.gridSize, z: Math.round(z / s.gridSize) * s.gridSize };
+  return { x, z };
+}
+function snapAxis(v, axis, exId) {
+  const s = S.plan.settings, tol = 11 / S.cam2.scale;
+  if (s.snapCorners) {
+    const T = snapTargets(exId)[axis === 'x' ? 'xs' : 'zs']; let best = null, bd = tol;
+    for (const t of T) { const d = Math.abs(t - v); if (d < bd) { bd = d; best = t; } }
+    if (best != null) return best;
+  }
+  return s.snapGrid ? Math.round(v / s.gridSize) * s.gridSize : v;
+}
+function snapRectMove(q, exId) {
+  const s = S.plan.settings, tol = 11 / S.cam2.scale, T = snapTargets(exId);
+  const best = (edges, targets) => { let b = null, bd = tol; for (const e of edges) for (const t of targets) { const d = t - e; if (Math.abs(d) < bd) { bd = Math.abs(d); b = d; } } return b; };
+  let dx = s.snapCorners ? best([q.x, q.x + q.w], T.xs) : null, dz = s.snapCorners ? best([q.z, q.z + q.d], T.zs) : null;
+  if (dx == null) dx = s.snapGrid ? Math.round(q.x / s.gridSize) * s.gridSize - q.x : 0;
+  if (dz == null) dz = s.snapGrid ? Math.round(q.z / s.gridSize) * s.gridSize - q.z : 0;
+  return { dx, dz };
+}
+const eqStep = () => Math.min(S.plan.settings.gridSize, 0.25);
+
+/* ---- drawing ---- */
+function hasArabic(t) { return /[؀-ۿ]/.test(t); }
+function roomLines(r, D) {
+  const L = [];
+  if ((D.labelLang === 'both' || D.labelLang === 'ar') && r.nameAr) L.push({ t: r.nameAr, b: true });
+  if (D.labelLang === 'both' || D.labelLang === 'en' || !r.nameAr) L.push({ t: r.nameEn, b: true });
+  const parts = [];
+  if (D.showDims) parts.push(f2(r.L) + ' × ' + f2(r.W) + ' m');
+  if (D.showArea) parts.push(f2(r.L * r.W) + ' m²');
+  if (parts.length) L.push({ t: parts.join(' · ') });
+  return L;
+}
+function draw2D(ctx, W, HH, cam, forExport) {
+  const P = S.plan, D = S.display, sc = cam.scale, sel = S.sel;
+  const X = x => (x - cam.cx) * sc + W / 2, Z = z => (z - cam.cz) * sc + HH / 2;
+  ctx.fillStyle = '#fbfaf7'; ctx.fillRect(0, 0, W, HH);
+  // grid
+  if (D.showGrid2d) {
+    const x0 = cam.cx - W / 2 / sc, x1 = cam.cx + W / 2 / sc, z0 = cam.cz - HH / 2 / sc, z1 = cam.cz + HH / 2 / sc;
+    let step = P.settings.gridSize; while (step * sc < 9) step *= 2;
+    ctx.lineWidth = 1; ctx.strokeStyle = '#ebe8e0'; ctx.beginPath();
+    for (let x = Math.floor(x0 / step) * step; x <= x1; x += step) { const px = Math.round(X(x)) + .5; ctx.moveTo(px, 0); ctx.lineTo(px, HH); }
+    for (let z = Math.floor(z0 / step) * step; z <= z1; z += step) { const py = Math.round(Z(z)) + .5; ctx.moveTo(0, py); ctx.lineTo(W, py); }
+    ctx.stroke();
+    if (5 * sc >= 24) {
+      ctx.strokeStyle = '#d9d4c8'; ctx.beginPath();
+      for (let x = Math.floor(x0 / 5) * 5; x <= x1; x += 5) { const px = Math.round(X(x)) + .5; ctx.moveTo(px, 0); ctx.lineTo(px, HH); }
+      for (let z = Math.floor(z0 / 5) * 5; z <= z1; z += 5) { const py = Math.round(Z(z)) + .5; ctx.moveTo(0, py); ctx.lineTo(W, py); }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#c9c2b3'; ctx.beginPath(); ctx.moveTo(X(0) + .5, 0); ctx.lineTo(X(0) + .5, HH); ctx.moveTo(0, Z(0) + .5); ctx.lineTo(W, Z(0) + .5); ctx.stroke();
+  }
+  // floors
+  for (const r of P.rooms) {
+    const q = rectOf(r); ctx.fillStyle = D.floorOverride ? D.floorColor : r.floorColor; ctx.globalAlpha = .75;
+    ctx.fillRect(X(q.x), Z(q.z), q.w * sc, q.d * sc); ctx.globalAlpha = 1;
+    if (isZone(P, r)) { ctx.strokeStyle = '#6b7785'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]); ctx.strokeRect(X(q.x) + .5, Z(q.z) + .5, q.w * sc - 1, q.d * sc - 1); ctx.setLineDash([]); }
+  }
+  // equipment
+  if (D.showEquipment) for (const e of P.equipment) {
+    const isSel = sel && sel.type === 'equip' && sel.id === e.id;
+    if (e.hidden && !isSel) continue;
+    drawEquip2D(ctx, e, X, Z, sc, e.hidden);
+  }
+  // walls
+  for (const w of P.walls) drawWall2D(ctx, w, w.exterior ? '#1d2229' : '#3a424c', X, Z, sc);
+  // doors
+  for (const d of P.doors) drawDoor2D(ctx, d, X, Z, sc, D.showDoorLabels);
+  // labels and dimension lines
+  for (const r of P.rooms) {
+    const q = rectOf(r), an = r.anchor || { fx: 0.5, fz: 0.5 }, pw = q.w * sc * (r.anchor ? 2 * Math.min(an.fx, 1 - an.fx) : 1), ph = q.d * sc, cx = X(q.x + q.w * an.fx), cy = Z(q.z + q.d * an.fz);
+    const isSel = sel && sel.type === 'room' && sel.id === r.id;
+    if (D.showRoomLabels && r.showLabel) {
+      let lines = roomLines(r, D);
+      let fs = clamp(sc * 0.55, 8, 15);
+      ctx.font = '700 8px "Segoe UI",Tahoma,Arial,sans-serif';
+      const wrapW = pw - 6, wd = t => ctx.measureText(t).width;
+      lines = lines.flatMap(l => { if (!/\s/.test(l.t) || wd(l.t) <= wrapW) return [l]; const ws = l.t.split(' '), out = []; let cur = ''; for (const w of ws) { const t = cur ? cur + ' ' + w : w; if (cur && wd(t) > wrapW) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out.map(t => ({ ...l, t })); });
+      ctx.save(); ctx.beginPath(); ctx.rect(cx - pw / 2 + 1, Z(q.z) + 1, pw - 2, ph - 2); ctx.clip();
+      const measure = f => Math.max(...lines.map(l => { ctx.font = (l.b ? '700 ' : '400 ') + f + 'px "Segoe UI",Tahoma,"Noto Naskh Arabic",Arial,sans-serif'; return ctx.measureText(l.t).width; }));
+      while (fs > 6.5 && measure(fs) > pw - 6) fs = Math.max(6.5, fs - 0.5);
+      const lh = fs * 1.28; let y = cy - (lines.length - 1) * lh / 2;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (fs >= 6.5 && pw > 22 && ph > 16) {
+        const bw = Math.min(pw - 4, measure(fs) + 8), bh = lines.length * lh + 2;
+        ctx.fillStyle = 'rgba(251,250,247,.72)'; ctx.fillRect(cx - bw / 2, cy - bh / 2, bw, bh);
+      }
+      if (fs >= 6.5 && pw > 22 && ph > 16) for (const l of lines) {
+        ctx.font = (l.b ? '700 ' : '400 ') + fs + 'px "Segoe UI",Tahoma,"Noto Naskh Arabic",Arial,sans-serif';
+        ctx.direction = hasArabic(l.t) ? 'rtl' : 'ltr';
+        ctx.fillStyle = l.b ? '#1b232c' : '#46515d'; ctx.fillText(l.t, cx, y); y += lh;
+      }
+      ctx.direction = 'ltr'; ctx.restore();
+    }
+    if (r.locked && !forExport) { ctx.font = '12px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = '#7a4f00'; ctx.fillText('🔒', X(q.x) + 3, Z(q.z) + 3); }
+    if (D.showDims || isSel) {
+      ctx.strokeStyle = isSel ? '#c2410c' : '#7a8794'; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1;
+      ctx.font = '10px "Segoe UI",Arial,sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      if (pw > 46) dimLine(ctx, X(q.x) + 4, Z(q.z) + 9, X(q.x + q.w) - 4, Z(q.z) + 9, f2(q.w) + ' m', false);
+      if (ph > 46) dimLine(ctx, X(q.x) + 9, Z(q.z) + 4, X(q.x) + 9, Z(q.z + q.d) - 4, f2(q.d) + ' m', true);
+    }
+  }
+  if (forExport) return;
+  // selection overlays
+  drawSelection2D(ctx, X, Z, sc);
+  // temp drawings
+  const dr = V2.drag;
+  if (dr && dr.kind === 'newRoom') {
+    const a = dr.a, b = dr.b, x = Math.min(a.x, b.x), z = Math.min(a.z, b.z), w = Math.abs(a.x - b.x), d = Math.abs(a.z - b.z);
+    ctx.strokeStyle = '#0b7285'; ctx.fillStyle = 'rgba(11,114,133,.15)'; ctx.setLineDash([6, 4]); ctx.lineWidth = 2;
+    ctx.fillRect(X(x), Z(z), w * sc, d * sc); ctx.strokeRect(X(x), Z(z), w * sc, d * sc); ctx.setLineDash([]);
+    tip(ctx, X(b.x) + 12, Z(b.z) + 12, f2(w) + ' × ' + f2(d) + ' m = ' + f2(w * d) + ' m²');
+  }
+  if (V2.wallStart && S.tool === 'addWall') {
+    const m = snapPt(V2.mouse.x, V2.mouse.z);
+    ctx.strokeStyle = '#0b7285'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(X(V2.wallStart.x), Z(V2.wallStart.z)); ctx.lineTo(X(m.x), Z(m.z)); ctx.stroke(); ctx.setLineDash([]);
+    tip(ctx, X(m.x) + 12, Z(m.z) + 12, 'Length ' + f2(Math.hypot(m.x - V2.wallStart.x, m.z - V2.wallStart.z)) + ' m');
+  }
+  if (V2.snapMark && ['addWall', 'addRoom', 'select', 'move', 'resize'].includes(S.tool)) {
+    ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(V2.snapMark.x), Z(V2.snapMark.z), 6, 0, 7); ctx.stroke();
+  }
+  if (dr && dr.moved && dr.tip) tip(ctx, dr.tip.px + 14, dr.tip.py + 14, dr.tip.text);
+}
+function tip(ctx, x, y, text) {
+  ctx.font = '12px "Segoe UI",Arial,sans-serif'; const w = ctx.measureText(text).width + 12;
+  ctx.fillStyle = 'rgba(22,32,44,.9)'; ctx.fillRect(x, y, w, 20); ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, x + 6, y + 10);
+}
+function dimLine(ctx, x1, y1, x2, y2, text, vertical) {
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  if (!vertical) { ctx.moveTo(x1, y1 - 4); ctx.lineTo(x1, y1 + 4); ctx.moveTo(x2, y2 - 4); ctx.lineTo(x2, y2 + 4); }
+  else { ctx.moveTo(x1 - 4, y1); ctx.lineTo(x1 + 4, y1); ctx.moveTo(x2 - 4, y2); ctx.lineTo(x2 + 4, y2); }
+  ctx.stroke();
+  ctx.save();
+  if (!vertical) { const tw = ctx.measureText(text).width + 6, mx = (x1 + x2) / 2; ctx.fillStyle = 'rgba(251,250,247,.85)'; ctx.fillRect(mx - tw / 2, y1 - 7, tw, 14); ctx.fillStyle = ctx.strokeStyle; ctx.fillText(text, mx, y1); }
+  else { ctx.translate(x1, (y1 + y2) / 2); ctx.rotate(-Math.PI / 2); const tw = ctx.measureText(text).width + 6; ctx.fillStyle = 'rgba(251,250,247,.85)'; ctx.fillRect(-tw / 2, -7, tw, 14); ctx.fillStyle = ctx.strokeStyle; ctx.fillText(text, 0, 0); }
+  ctx.restore();
+}
+function drawWall2D(ctx, w, color, X, Z, sc) {
+  const i = wallInfo(S.plan, w), ops = wallOpenings(S.plan, w), ext = i.horizontal ? i.t / 2 : 0, th = Math.max(i.t * sc, 1.6);
+  ctx.save(); ctx.translate(X(w.x1), Z(w.z1)); ctx.rotate(Math.atan2(i.uz, i.ux)); ctx.fillStyle = color;
+  const seg = (a, b) => ctx.fillRect(a * sc, -th / 2, (b - a) * sc, th);
+  let cur = -ext;
+  for (const o of ops) { if (o.a > cur + 1e-6) seg(cur, o.a); cur = o.b; }
+  if (i.len + ext > cur + 1e-6) seg(cur, i.len + ext);
+  ctx.restore();
+}
+function doorProblem(d) { return S.issues.some(i => i.sev === 'error' && i.target && i.target.type === 'door' && i.target.id === d.id); }
+function drawDoor2D(ctx, d, X, Z, sc, labels) {
+  const P = S.plan, w = wallById(P, d.hostWallId), isSel = S.sel && S.sel.type === 'door' && S.sel.id === d.id;
+  if (!w) {
+    ctx.strokeStyle = '#c92a2a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(X(d.ax), Z(d.az), Math.max(6, d.width * sc / 2), 0, 7); ctx.stroke();
+    ctx.fillStyle = '#c92a2a'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', X(d.ax), Z(d.az));
+    return;
+  }
+  const i = wallInfo(P, w), a = Math.max(0, d.offset - d.width / 2), b = Math.min(i.len, d.offset + d.width / 2), wd = b - a;
+  if (wd < 0.05) return;
+  const col = doorProblem(d) ? '#c92a2a' : d.uncertain ? '#e67700' : '#1c6ea4';
+  ctx.save(); ctx.translate(X(w.x1), Z(w.z1)); ctx.rotate(Math.atan2(i.uz, i.ux));
+  const th = Math.max(i.t * sc, 2);
+  ctx.fillStyle = 'rgba(251,250,247,.95)'; ctx.fillRect(a * sc, -th / 2 - 1, wd * sc, th + 2);
+  ctx.fillStyle = d.frameColor; ctx.fillRect(a * sc - 1, -th / 2 - 1.5, Math.max(2.5, .05 * sc), th + 3); ctx.fillRect(b * sc - Math.max(2.5, .05 * sc) + 1, -th / 2 - 1.5, Math.max(2.5, .05 * sc), th + 3);
+  ctx.strokeStyle = col; ctx.lineWidth = isSel ? 2.6 : 1.5; ctx.setLineDash(d.uncertain ? [4, 3] : []);
+  const sw = d.swing, inner = wd - 0.1;
+  const leaf = (hu, dir, lw) => {
+    ctx.beginPath(); ctx.moveTo(hu * sc, 0); ctx.lineTo(hu * sc, sw * lw * sc); ctx.stroke();
+    const a0 = dir > 0 ? 0 : Math.PI, a1 = sw > 0 ? Math.PI / 2 : -Math.PI / 2;
+    let diff = a1 - a0; while (diff > Math.PI) diff -= 2 * Math.PI; while (diff <= -Math.PI) diff += 2 * Math.PI;
+    ctx.beginPath(); ctx.arc(hu * sc, 0, lw * sc, a0, a1, diff < 0); ctx.stroke();
+  };
+  if (d.type === 'single') { d.hinge === 'start' ? leaf(a + 0.05, 1, inner) : leaf(b - 0.05, -1, inner); }
+  else if (d.type === 'double') { leaf(a + 0.05, 1, inner / 2); leaf(b - 0.05, -1, inner / 2); }
+  else {
+    ctx.setLineDash([]); ctx.fillStyle = d.color; const off = (th / 2 + 2) * sw;
+    ctx.fillRect(a * sc, off - 1.5, wd * sc / 2 + 2, 3); ctx.strokeRect(a * sc, off - 1.5, wd * sc / 2 + 2, 3);
+    ctx.beginPath(); ctx.moveTo((a + wd * .55) * sc, off * 2.2); ctx.lineTo((a + wd * .9) * sc, off * 2.2); ctx.stroke();
+  }
+  ctx.restore();
+  if (labels) {
+    const c = wallPoint(w, d.offset), lx = X(c.x + i.nx * sw * (d.width * .55 + .3)), ly = Z(c.z + i.nz * sw * (d.width * .55 + .3));
+    const t = d.refNo ? 'D' + d.refNo : 'D';
+    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(t).width + 6; ctx.fillStyle = col; ctx.fillRect(lx - tw / 2, ly - 7, tw, 14); ctx.fillStyle = '#fff'; ctx.fillText(t, lx, ly);
+  }
+}
+function drawEquip2D(ctx, e, X, Z, sc, ghost) {
+  ctx.save(); ctx.translate(X(e.x), Z(e.z)); ctx.rotate(rad(e.rot || 0));
+  const w = e.w * sc, d = e.d * sc;
+  ctx.globalAlpha = ghost ? 0.3 : 1; ctx.fillStyle = e.color; ctx.strokeStyle = '#47525e'; ctx.lineWidth = 1;
+  if (e.elev >= 1.8) ctx.setLineDash([5, 3]);
+  if (e.elev >= 1.8) { ctx.globalAlpha *= .35; ctx.fillRect(-w / 2, -d / 2, w, d); ctx.globalAlpha = ghost ? .3 : 1; ctx.strokeRect(-w / 2, -d / 2, w, d); ctx.setLineDash([]); }
+  else { ctx.fillRect(-w / 2, -d / 2, w, d); ctx.strokeRect(-w / 2 + .5, -d / 2 + .5, w - 1, d - 1); }
+  ctx.strokeStyle = 'rgba(30,40,50,.55)';
+  const t = e.type;
+  if (t === 'chair') { ctx.lineWidth = Math.max(1.5, d * .18); ctx.beginPath(); ctx.moveTo(-w / 2, d / 2 - ctx.lineWidth / 2); ctx.lineTo(w / 2, d / 2 - ctx.lineWidth / 2); ctx.stroke(); }
+  else if (t === 'range' || t === 'oven') { for (const [ox, oz] of [[-.22, -.22], [.22, -.22], [-.22, .22], [.22, .22]]) { ctx.beginPath(); ctx.arc(ox * w, oz * d, Math.min(w, d) * .13, 0, 7); ctx.stroke(); } if (t === 'oven') { ctx.strokeRect(-w * .35, -d * .15, w * .7, d * .4); } }
+  else if (t === 'sink') { ctx.strokeRect(-w * .38, -d * .3, w * .76, d * .6); ctx.beginPath(); ctx.moveTo(0, -d * .3); ctx.lineTo(0, d * .3); ctx.stroke(); }
+  else if (t === 'fridge' || t === 'coldShelf') { ctx.beginPath(); ctx.moveTo(-w / 2, -d / 2); ctx.lineTo(w / 2, d / 2); ctx.moveTo(w / 2, -d / 2); ctx.lineTo(-w / 2, d / 2); ctx.stroke(); }
+  else if (t === 'shelf') { for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-w / 2 + w * k / 4, -d / 2); ctx.lineTo(-w / 2 + w * k / 4, d / 2); ctx.stroke(); } }
+  else if (t === 'panel') { ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(w / 2, 0); ctx.stroke(); }
+  else if (t === 'mixer') { ctx.beginPath(); ctx.arc(0, 0, Math.min(w, d) * .32, 0, 7); ctx.stroke(); }
+  else if (t === 'prepTable' || t === 'counter' || t === 'diningTable') { ctx.strokeRect(-w / 2 + 2, -d / 2 + 2, w - 4, d - 4); }
+  else if (t === 'dishRack' || t === 'pallet') { ctx.beginPath(); for (let k = 1; k < 4; k++) { ctx.moveTo(-w / 2, -d / 2 + d * k / 4); ctx.lineTo(w / 2, -d / 2 + d * k / 4); } ctx.stroke(); }
+  ctx.restore();
+}
+function drawSelection2D(ctx, X, Z, sc) {
+  const sel = S.sel, P = S.plan, hv = V2.hover;
+  const outline = (q, color, w, dashed) => { ctx.strokeStyle = color; ctx.lineWidth = w; ctx.setLineDash(dashed ? [7, 4] : []); ctx.strokeRect(X(q.x), Z(q.z), q.w * sc, q.d * sc); ctx.setLineDash([]); };
+  if (hv && !(sel && sel.type === hv.type && sel.id === hv.id) && V2.pointers.size === 0 && !V2.drag) {
+    if (hv.type === 'room') outline(rectOf(roomById(P, hv.id)), 'rgba(240,140,0,.55)', 2);
+  }
+  // issue highlight
+  const hi = S.highlight;
+  if (hi && hi.until > performance.now()) {
+    const o = findSel(hi.target);
+    if (o) { ctx.strokeStyle = '#e03131'; ctx.lineWidth = 4; ctx.setLineDash([]); const c = objCenter(hi.target.type, o); ctx.beginPath(); ctx.arc(X(c.x), Z(c.z), 22 + 6 * Math.sin(performance.now() / 120), 0, 7); ctx.stroke(); S.dirty2d = true; }
+  }
+  if (!sel) return;
+  const o = selObj(); if (!o) return;
+  const handle = (x, y, round) => { ctx.fillStyle = '#fff'; ctx.strokeStyle = '#f08c00'; ctx.lineWidth = 2; ctx.beginPath(); if (round) ctx.arc(x, y, 6, 0, 7); else ctx.rect(x - 5, y - 5, 10, 10); ctx.fill(); ctx.stroke(); };
+  if (sel.type === 'room') {
+    const q = rectOf(o); outline(q, '#f08c00', 3, o.locked);
+    if (!o.locked && ['select', 'resize'].includes(S.tool)) for (const hd of roomHandles(q)) handle(X(hd.x), Z(hd.z));
+  } else if (sel.type === 'wall') {
+    const i = wallInfo(P, o); ctx.save(); ctx.translate(X(o.x1), Z(o.z1)); ctx.rotate(Math.atan2(i.uz, i.ux));
+    const th = Math.max(i.t * sc, 2) + 6; ctx.strokeStyle = '#f08c00'; ctx.lineWidth = 2.5; ctx.setLineDash(o.locked ? [6, 3] : []); ctx.strokeRect(-3, -th / 2, i.len * sc + 6, th); ctx.restore();
+    if (!o.locked) { handle(X(o.x1), Z(o.z1), true); handle(X(o.x2), Z(o.z2), true); }
+  } else if (sel.type === 'door') {
+    const w = wallById(P, o.hostWallId);
+    if (w) { const i = wallInfo(P, w), a = Math.max(0, o.offset - o.width / 2), b = Math.min(i.len, o.offset + o.width / 2);
+      ctx.save(); ctx.translate(X(w.x1), Z(w.z1)); ctx.rotate(Math.atan2(i.uz, i.ux)); ctx.strokeStyle = '#f08c00'; ctx.lineWidth = 3; ctx.setLineDash(o.locked ? [6, 3] : []);
+      const sw = o.width * sc; ctx.strokeRect(a * sc - 3, -sw * .55, (b - a) * sc + 6, sw * 1.1); ctx.restore(); }
+  } else if (sel.type === 'equip') {
+    ctx.save(); ctx.translate(X(o.x), Z(o.z)); ctx.rotate(rad(o.rot || 0));
+    ctx.strokeStyle = '#f08c00'; ctx.lineWidth = 2.5; ctx.setLineDash(o.locked ? [6, 3] : []); ctx.strokeRect(-o.w * sc / 2 - 2, -o.d * sc / 2 - 2, o.w * sc + 4, o.d * sc + 4); ctx.setLineDash([]);
+    if (!o.locked) {
+      ctx.beginPath(); ctx.moveTo(0, -o.d * sc / 2); ctx.lineTo(0, -o.d * sc / 2 - 26); ctx.stroke();
+      handle(0, -o.d * sc / 2 - 26, true); handle(o.w * sc / 2, 0); handle(0, o.d * sc / 2);
+    }
+    ctx.restore();
+  }
+}
+function objCenter(type, o) {
+  if (type === 'room') { const q = rectOf(o); return { x: q.x + q.w / 2, z: q.z + q.d / 2 }; }
+  if (type === 'wall') return { x: (o.x1 + o.x2) / 2, z: (o.z1 + o.z2) / 2 };
+  if (type === 'door') return { x: o.ax, z: o.az };
+  return { x: o.x, z: o.z };
+}
+function roomHandles(q) {
+  const xm = q.x + q.w / 2, zm = q.z + q.d / 2, x2 = q.x + q.w, z2 = q.z + q.d;
+  return [{ h: 'nw', x: q.x, z: q.z }, { h: 'n', x: xm, z: q.z }, { h: 'ne', x: x2, z: q.z }, { h: 'e', x: x2, z: zm },
+    { h: 'se', x: x2, z: z2 }, { h: 's', x: xm, z: z2 }, { h: 'sw', x: q.x, z: z2 }, { h: 'w', x: q.x, z: zm }];
+}
+
+/* ---- hit testing ---- */
+function pointInEq(e, x, z, pad) {
+  const a = rad(-(e.rot || 0)), c = Math.cos(a), s = Math.sin(a), dx = x - e.x, dz = z - e.z;
+  const lx = dx * c - dz * s, lz = dx * s + dz * c;
+  return Math.abs(lx) <= e.w / 2 + pad && Math.abs(lz) <= e.d / 2 + pad;
+}
+function hitHandle(px, py) {
+  const sel = S.sel, o = selObj(); if (!sel || !o || o.locked) return null;
+  const near = (x, z) => { const [sx, sy] = toS(x, z); return Math.hypot(sx - px, sy - py) <= HANDLE_PX + 3; };
+  if (sel.type === 'room' && ['select', 'resize'].includes(S.tool)) { for (const hd of roomHandles(rectOf(o))) if (near(hd.x, hd.z)) return { kind: 'room', h: hd.h }; }
+  if (sel.type === 'wall' && ['select', 'move', 'resize'].includes(S.tool)) { if (near(o.x1, o.z1)) return { kind: 'wall', h: 'p1' }; if (near(o.x2, o.z2)) return { kind: 'wall', h: 'p2' }; }
+  if (sel.type === 'equip' && ['select', 'resize', 'rotate'].includes(S.tool)) {
+    const a = rad(o.rot || 0), c = Math.cos(a), s = Math.sin(a), L = (lx, lz) => [o.x + lx * c - lz * s, o.z + lx * s + lz * c];
+    const pr = L(0, -o.d / 2 - 26 / S.cam2.scale), pw = L(o.w / 2, 0), pd = L(0, o.d / 2);
+    if (near(pr[0], pr[1])) return { kind: 'equip', h: 'rot' };
+    if (S.tool !== 'rotate') { if (near(pw[0], pw[1])) return { kind: 'equip', h: 'w' }; if (near(pd[0], pd[1])) return { kind: 'equip', h: 'd' }; }
+  }
+  return null;
+}
+function hitTest(wx, wz) {
+  const P = S.plan, D = S.display, tol = 7 / S.cam2.scale;
+  if (D.showEquipment) for (let k = P.equipment.length - 1; k >= 0; k--) { const e = P.equipment[k]; if (e.hidden || e.elev >= 1.8) continue; if (pointInEq(e, wx, wz, tol * .5)) return { type: 'equip', id: e.id }; }
+  for (const d of P.doors) {
+    const w = wallById(P, d.hostWallId); if (!w) { if (Math.hypot(wx - d.ax, wz - d.az) < Math.max(tol * 1.5, d.width / 2)) return { type: 'door', id: d.id }; continue; }
+    const i = wallInfo(P, w), c = wallPoint(w, d.offset), dx = wx - c.x, dz = wz - c.z, u = dx * i.ux + dz * i.uz, n = dx * i.nx + dz * i.nz;
+    if (Math.abs(u) <= d.width / 2 + tol * .5 && Math.abs(n) <= Math.max(i.t / 2, d.width * .55) + tol * .5) return { type: 'door', id: d.id };
+  }
+  let bw = null, bd = Infinity;
+  for (const w of P.walls) { const i = wallInfo(P, w), s = segDist(wx, wz, w.x1, w.z1, w.x2, w.z2); if (s.d <= Math.max(i.t / 2, tol) && s.d < bd) { bd = s.d; bw = w; } }
+  if (bw) return { type: 'wall', id: bw.id };
+  if (D.showEquipment) for (let k = P.equipment.length - 1; k >= 0; k--) { const e = P.equipment[k]; if (e.hidden || !(e.elev >= 1.8)) continue; if (pointInEq(e, wx, wz, tol * .5)) return { type: 'equip', id: e.id }; }
+  let br = null, ba = Infinity;
+  for (const r of P.rooms) { const q = rectOf(r); if (wx >= q.x && wx <= q.x + q.w && wz >= q.z && wz <= q.z + q.d && q.w * q.d < ba) { br = r; ba = q.w * q.d; } }
+  return br ? { type: 'room', id: br.id } : null;
+}
+
+/* ---- pointer interaction ---- */
+function cursorFor(hit, hd) {
+  if (hd) return hd.kind === 'equip' && hd.h === 'rot' ? 'crosshair' : 'nwse-resize';
+  if (['addRoom', 'addWall', 'addDoor', 'addEquip'].includes(S.tool)) return 'crosshair';
+  if (V2.space) return 'grab';
+  return hit ? (S.tool === 'rotate' ? 'pointer' : 'move') : 'default';
+}
+function init2D() {
+  const cv = V2.cv = $('#c2d'); V2.ctx = cv.getContext('2d');
+  new ResizeObserver(resize2D).observe($('#pane2d'));
+  const pos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('wheel', e => { e.preventDefault(); const [px, py] = pos(e); zoomAt(px, py, Math.pow(1.0016, -e.deltaY)); }, { passive: false });
+  cv.addEventListener('pointerdown', e => {
+    const [px, py] = pos(e); cv.setPointerCapture(e.pointerId); V2.pointers.set(e.pointerId, { x: px, y: py });
+    if (V2.pointers.size === 2) { abortDrag(); const [a, b] = [...V2.pointers.values()]; V2.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; return; }
+    if (V2.pointers.size > 1) return;
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1 && e.button !== 2) return;
+    if (e.button === 1 || e.button === 2 || V2.space) { V2.drag = { kind: 'pan', sx: px, sy: py, cx: S.cam2.cx, cz: S.cam2.cz, moved: true }; cv.style.cursor = 'grabbing'; return; }
+    const [wx, wz] = toW(px, py); beginAction(wx, wz, px, py, e);
+  });
+  cv.addEventListener('pointermove', e => {
+    const [px, py] = pos(e);
+    if (V2.pointers.has(e.pointerId)) V2.pointers.set(e.pointerId, { x: px, y: py });
+    if (V2.pinch && V2.pointers.size === 2) {
+      const [a, b] = [...V2.pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      zoomAt(mx, my, d / V2.pinch.d); S.cam2.cx -= (mx - V2.pinch.mx) / S.cam2.scale; S.cam2.cz -= (my - V2.pinch.my) / S.cam2.scale; V2.pinch = { d, mx, my }; return;
+    }
+    const [wx, wz] = toW(px, py); V2.mouse = { x: wx, z: wz };
+    $('#stPos').textContent = 'x ' + f2(wx) + '  z ' + f2(wz) + ' m';
+    if (V2.drag) { dragMove(wx, wz, px, py); return; }
+    if (V2.pointers.size === 0 || e.pointerType === 'mouse') {
+      const hd = hitHandle(px, py), hit = hd ? null : hitTest(wx, wz);
+      const hk = hit ? hit.type + hit.id : '';
+      if (hk !== (V2.hover ? V2.hover.type + V2.hover.id : '')) { V2.hover = hit; S.dirty2d = true; }
+      cv.style.cursor = cursorFor(hit, hd);
+      if (S.tool === 'addWall' && V2.wallStart || ['addWall', 'addRoom'].includes(S.tool)) { snapPt(wx, wz); S.dirty2d = true; }
+    }
+  });
+  const up = e => {
+    V2.pointers.delete(e.pointerId);
+    if (V2.pinch) { if (V2.pointers.size < 2) V2.pinch = null; return; }
+    if (V2.drag) endDrag();
+  };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('dblclick', e => {
+    const [px, py] = pos(e), [wx, wz] = toW(px, py);
+    if (S.tool === 'addWall') { V2.wallStart = null; return; }
+    const hit = hitTest(wx, wz);
+    if (hit && hit.type === 'room' && S.v3) { select('room', hit.id); S.v3.focusRoom(hit.id); }
+  });
+  $('#zFit').onclick = fit2D;
+  $('#zIn').onclick = () => zoomAt(V2.w / 2, V2.h / 2, 1.25);
+  $('#zOut').onclick = () => zoomAt(V2.w / 2, V2.h / 2, 0.8);
+}
+function abortDrag() {
+  const d = V2.drag; if (!d) return;
+  if (d.moved && d.snap0) { S.plan = JSON.parse(d.snap0); changed(); }
+  V2.drag = null; S.dirty2d = true;
+}
+function beginAction(wx, wz, px, py, e) {
+  const t = S.tool, P = S.plan;
+  if (t === 'addRoom') { const a = snapPt(wx, wz); V2.drag = { kind: 'newRoom', a, b: a, moved: false, px, py }; return; }
+  if (t === 'addWall') {
+    const p = snapPt(wx, wz);
+    if (!V2.wallStart) { V2.wallStart = p; S.dirty2d = true; return; }
+    let q = p; if (!e.shiftKey) { if (Math.abs(q.x - V2.wallStart.x) < 0.2) q = { x: V2.wallStart.x, z: q.z }; else if (Math.abs(q.z - V2.wallStart.z) < 0.2) q = { x: q.x, z: V2.wallStart.z }; }
+    addManualWall(V2.wallStart.x, V2.wallStart.z, q.x, q.z); V2.wallStart = null; return;
+  }
+  if (t === 'addDoor') { addDoorAt(wx, wz); return; }
+  if (t === 'addEquip') { const st = eqStep(); addEquipment(S.libType, P.settings.snapGrid ? Math.round(wx / st) * st : wx, P.settings.snapGrid ? Math.round(wz / st) * st : wz); return; }
+  const hd = hitHandle(px, py);
+  if (hd) { startHandleDrag(hd, wx, wz, px, py); return; }
+  const hit = hitTest(wx, wz);
+  if (!hit) { select(null); V2.drag = { kind: 'pan', sx: px, sy: py, cx: S.cam2.cx, cz: S.cam2.cz, moved: true }; return; }
+  select(hit.type, hit.id);
+  const o = selObj();
+  if (t === 'rotate') {
+    if (hit.type === 'room') rotateRoom(o);
+    else if (hit.type === 'equip') { if (!lockedCheck(o, 'Equipment')) edit(() => { o.rot = ((o.rot || 0) + (e.shiftKey ? -90 : 90) + 360) % 360; }); }
+    else toast('Rotate works on rooms and equipment');
+    return;
+  }
+  if (t === 'resize') return;
+  if (o.locked) { toast((hit.type === 'room' ? 'Room' : 'Object') + ' is locked', true); return; }
+  const base = { start: [wx, wz], px, py, moved: false, snap0: snap(), id: hit.id };
+  if (hit.type === 'room') V2.drag = { ...base, kind: 'moveRoom', orig: { x: o.x, z: o.z } };
+  else if (hit.type === 'wall') V2.drag = { ...base, kind: 'moveWall', orig: { ...o } };
+  else if (hit.type === 'door') V2.drag = { ...base, kind: 'moveDoor' };
+  else if (hit.type === 'equip') V2.drag = { ...base, kind: 'moveEquip', orig: { x: o.x, z: o.z } };
+}
+function startHandleDrag(hd, wx, wz, px, py) {
+  const o = selObj(), base = { start: [wx, wz], px, py, moved: false, snap0: snap(), id: o.id, h: hd.h };
+  if (hd.kind === 'room') V2.drag = { ...base, kind: 'resizeRoom', orig: { ...rectOf(o) } };
+  else if (hd.kind === 'wall') V2.drag = { ...base, kind: 'wallEnd' };
+  else V2.drag = { ...base, kind: 'eqHandle' };
+}
+function dragMove(wx, wz, px, py) {
+  const d = V2.drag, P = S.plan; if (!d) return;
+  if (d.kind === 'pan') { V2.userView = true; S.cam2.cx = d.cx - (px - d.sx) / S.cam2.scale; S.cam2.cz = d.cz - (py - d.sy) / S.cam2.scale; S.dirty2d = true; return; }
+  if (!d.moved) { if (Math.hypot(px - d.px, py - d.py) < 3) return; d.moved = true; }
+  d.tip = { px, py, text: '' };
+  if (d.kind === 'newRoom') { d.b = snapPt(wx, wz); S.dirty2d = true; return; }
+  const dx = wx - d.start[0], dz = wz - d.start[1];
+  if (d.kind === 'moveRoom') {
+    const r = roomById(P, d.id), f = fp(r), q = { x: d.orig.x + dx, z: d.orig.z + dz, w: f.w, d: f.d }, a = snapRectMove(q, r.id);
+    r.x = r2(q.x + a.dx); r.z = r2(q.z + a.dz); rebuildWalls(P); d.tip.text = 'x ' + f2(r.x) + ', z ' + f2(r.z); changed({ live: true });
+  } else if (d.kind === 'resizeRoom') {
+    const r = roomById(P, d.id), o = d.orig; let x0 = o.x, z0 = o.z, x1 = o.x + o.w, z1 = o.z + o.d;
+    if (d.h.includes('w')) x0 = snapAxis(wx, 'x', r.id); if (d.h.includes('e')) x1 = snapAxis(wx, 'x', r.id);
+    if (d.h.includes('n')) z0 = snapAxis(wz, 'z', r.id); if (d.h.includes('s')) z1 = snapAxis(wz, 'z', r.id);
+    if (x1 - x0 < 0.5) { if (d.h.includes('w')) x0 = x1 - 0.5; else x1 = x0 + 0.5; }
+    if (z1 - z0 < 0.5) { if (d.h.includes('n')) z0 = z1 - 0.5; else z1 = z0 + 0.5; }
+    const w = r2(x1 - x0), dd = r2(z1 - z0); r.x = r2(x0); r.z = r2(z0);
+    if (r.linkModel) { if (r.rot === 90) { r.W = w; r.L = dd; } else { r.L = w; r.W = dd; } const e = stExt(r); r.modeled = { w: e.w, d: e.d }; }
+    else r.modeled = { w, d: dd };
+    rebuildWalls(P); d.tip.text = f2(w) + ' × ' + f2(dd) + ' m = ' + f2(w * dd) + ' m²'; changed({ live: true });
+  } else if (d.kind === 'moveWall') {
+    const w = wallById(P, d.id), o = d.orig, a = snapPt(o.x1 + dx, o.z1 + dz, null);
+    const ox = a.x - o.x1, oz = a.z - o.z1; w.x1 = r2(o.x1 + ox); w.z1 = r2(o.z1 + oz); w.x2 = r2(o.x2 + ox); w.z2 = r2(o.z2 + oz);
+    syncAnchors(P); d.tip.text = 'Wall at (' + f2(w.x1) + ', ' + f2(w.z1) + ')'; changed({ live: true });
+  } else if (d.kind === 'wallEnd') {
+    const w = wallById(P, d.id), p = snapPt(wx, wz, null), ox = d.h === 'p1' ? w.x2 : w.x1, oz = d.h === 'p1' ? w.z2 : w.z1;
+    let q = p; if (!V2.shift) { if (Math.abs(q.x - ox) < 0.15) q = { x: ox, z: q.z }; else if (Math.abs(q.z - oz) < 0.15) q = { x: q.x, z: oz }; }
+    if (d.h === 'p1') { w.x1 = r2(q.x); w.z1 = r2(q.z); } else { w.x2 = r2(q.x); w.z2 = r2(q.z); }
+    syncAnchors(P); d.tip.text = 'Length ' + f2(Math.hypot(w.x2 - w.x1, w.z2 - w.z1)) + ' m'; changed({ live: true });
+  } else if (d.kind === 'moveDoor') {
+    const o = doorById(P, d.id); moveDoorTo(o, wx, wz, 0.05); d.tip.text = 'Offset ' + f2(o.offset) + ' m'; changed({ live: true });
+  } else if (d.kind === 'moveEquip') {
+    const e = equipById(P, d.id), st = eqStep(), g = P.settings.snapGrid;
+    e.x = r2(g ? Math.round((d.orig.x + dx) / st) * st : d.orig.x + dx); e.z = r2(g ? Math.round((d.orig.z + dz) / st) * st : d.orig.z + dz);
+    d.tip.text = 'x ' + f2(e.x) + ', z ' + f2(e.z); changed({ live: true });
+  } else if (d.kind === 'eqHandle') {
+    const e = equipById(P, d.id), a = rad(-(e.rot || 0)), c = Math.cos(a), s = Math.sin(a), ddx = wx - e.x, ddz = wz - e.z;
+    if (d.h === 'rot') { let ang = deg(Math.atan2(ddz, ddx)) + 90; if (P.settings.snapGrid) ang = Math.round(ang / 15) * 15; e.rot = ((Math.round(ang) % 360) + 360) % 360; d.tip.text = 'Rotation ' + e.rot + '°'; }
+    else { const lx = ddx * c - ddz * s, lz = ddx * s + ddz * c, st = 0.05; if (d.h === 'w') e.w = Math.max(0.1, r2(Math.round(2 * Math.abs(lx) / st) * st)); else e.d = Math.max(0.1, r2(Math.round(2 * Math.abs(lz) / st) * st)); d.tip.text = f2(e.w) + ' × ' + f2(e.d) + ' m'; }
+    changed({ live: true });
+  }
+}
+function endDrag() {
+  const d = V2.drag; V2.drag = null; S.dirty2d = true; S.dirtyInsp = true;
+  V2.cv.style.cursor = 'default';
+  if (!d || d.kind === 'pan') return;
+  if (d.kind === 'newRoom') {
+    const a = d.a, b = d.b; let w = Math.abs(a.x - b.x), dd = Math.abs(a.z - b.z), x = Math.min(a.x, b.x), z = Math.min(a.z, b.z);
+    if (w < 0.5 || dd < 0.5) { w = 4; dd = 3; x = a.x; z = a.z; }
+    addRoomRect(x, z, w, dd); return;
+  }
+  if (!d.moved) return;
+  if (['moveRoom', 'resizeRoom'].includes(d.kind)) {
+    const o = roomById(S.plan, d.id), old = JSON.parse(d.snap0).rooms.find(r => r.id === d.id);
+    const carry = d.kind === 'moveRoom' ? { doorIds: S.plan.doors.filter(q => onRoomEdge(q, d.snap0, d.id)).map(q => q.id), dx: o.x - old.x, dz: o.z - old.z } : null;
+    reviewChange(d.snap0, { carry });
+  } else if (['moveWall', 'wallEnd'].includes(d.kind)) {
+    const w = wallById(S.plan, d.id);
+    if (w && !w.manual) { w.manual = true; w.note = (w.note ? w.note + ' ' : '') + '(geometry edited manually; kept when walls are rebuilt)'; }
+    reviewChange(d.snap0);
+  } else { pushUndo(d.snap0); changed(); }
+}
+/* ---------------------------------------------------------------------
+   7. THREE.JS SCENE (loaded dynamically so the 2D editor survives CDN failure)
+   --------------------------------------------------------------------- */
+async function init3D() {
+  const err = $('#err3d');
+  const fail = msg => {
+    err.classList.add('show');
+    err.replaceChildren(h('div', {}, h('b', {}, '3D view unavailable'), h('p', {}, msg), h('p', {}, 'The 2D editor, lists, validation, save and export still work. 3D needs an internet connection to load Three.js (or a WebGL-capable browser).')));
+  };
+  let THREE, OrbitControls, CSS2DRenderer, CSS2DObject;
+  try {
+    const c = document.createElement('canvas');
+    if (!(c.getContext('webgl2') || c.getContext('webgl'))) throw new Error('WebGL is not available in this browser, or it is disabled.');
+    THREE = await import('three');
+    ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+    ({ CSS2DRenderer, CSS2DObject } = await import('three/addons/renderers/CSS2DRenderer.js'));
+  } catch (e) {
+    console.error(e);
+    fail('Three.js could not be loaded from the CDN (an internet connection is required) or WebGL is unavailable. Details: ' + e.message);
+    return null;
+  }
+  try { return build3D(THREE, OrbitControls, CSS2DRenderer, CSS2DObject); }
+  catch (e) { console.error(e); fail('3D initialisation failed: ' + e.message); return null; }
+}
+
+function build3D(THREE, OrbitControls, CSS2DRenderer, CSS2DObject) {
+  const host = $('#gl');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  host.appendChild(renderer.domElement);
+  const labelR = new CSS2DRenderer();
+  labelR.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden';
+  host.appendChild(labelR.domElement);
+  renderer.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); $('#err3d').classList.add('show'); $('#err3d').textContent = 'The WebGL context was lost. Reload the page to restore the 3D view (your plan is saved).'; });
+
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#cfd8de');
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 800);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI / 2; controls.minDistance = 1.5; controls.maxDistance = 300;
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8e949a, 0.8);
+  const sun = new THREE.DirectionalLight(0xfff6e8, 1.5);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3;
+  scene.add(hemi, sun, sun.target);
+  const gStruct = new THREE.Group(), gEquip = new THREE.Group(), gLabels = new THREE.Group(), gSupp = new THREE.Group(), gSel = new THREE.Group();
+  scene.add(gStruct, gEquip, gLabels, gSupp, gSel);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshStandardMaterial({ color: '#d9d7d2', roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.045; ground.receiveShadow = true; ground.material.userData = { kind: 'ground', baseOpacity: 1, baseTransparent: false };
+  scene.add(ground);
+  const grid = new THREE.GridHelper(160, 160, 0x6b7785, 0x9aa5b1); grid.position.y = 0.006; grid.material.transparent = true; grid.material.opacity = 0.35; grid.material.depthWrite = false;
+  scene.add(grid);
+
+  /* ---- helpers ---- */
+  const reg = { byKey: new Map(), floors: [], ceilings: [], roomLabels: [], doorLabels: [] };
+  const mat = (kind, color, o) => {
+    o = o || {}; const op = o.opacity == null ? 1 : o.opacity;
+    const m = new THREE.MeshStandardMaterial({ color, roughness: o.rough == null ? 0.6 : o.rough, metalness: o.metal || 0, transparent: op < 1, opacity: op, side: o.side || THREE.FrontSide });
+    m.userData = { kind, baseOpacity: op, baseTransparent: op < 1 }; return m;
+  };
+  const box = (w, hh, d, m, x, y, z, pick, noShadow) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(Math.max(w, 1e-3), Math.max(hh, 1e-3), Math.max(d, 1e-3)), m);
+    mesh.position.set(x, y, z); mesh.castShadow = !noShadow; mesh.receiveShadow = true; if (pick) mesh.userData.pick = pick; return mesh;
+  };
+  const shade = (hex, k) => '#' + new THREE.Color(hex).multiplyScalar(k).getHexString();
+  function disposeObj(o) {
+    o.traverse(c => {
+      if (c.isCSS2DObject && c.element) c.element.remove();
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) for (const m of [].concat(c.material)) { if (m.map) m.map.dispose(); m.dispose(); }
+    });
+  }
+  function clearGroup(g) { for (const c of g.children.slice()) { g.remove(c); disposeObj(c); } }
+  const texBase = {};
+  function floorTexture(kind, w, d) {
+    if (kind !== 'tile' && kind !== 'wood') return null;
+    if (!texBase[kind]) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, 128, 128); g.strokeStyle = kind === 'tile' ? '#9a9a9a' : '#8a7660'; g.lineWidth = kind === 'tile' ? 3 : 2;
+      if (kind === 'tile') g.strokeRect(0, 0, 128, 128);
+      else { for (let r = 0; r < 4; r++) { g.beginPath(); g.moveTo(0, r * 32); g.lineTo(128, r * 32); g.stroke(); g.beginPath(); const x = r % 2 ? 40 : 100; g.moveTo(x, r * 32); g.lineTo(x, r * 32 + 32); g.stroke(); } }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texBase[kind] = t;
+    }
+    const t = texBase[kind].clone(); t.needsUpdate = true;
+    t.repeat.set(w / (kind === 'tile' ? 0.6 : 0.8), d / (kind === 'tile' ? 0.6 : 0.8)); return t;
+  }
+
+  /* ---- structure: floors, walls, door openings, frames, leaves, ceilings, labels ---- */
+  function labelEl(r) {
+    const D = S.display, el = h('div', { class: 'lbl3d' });
+    if ((D.labelLang === 'both' || D.labelLang === 'ar') && r.nameAr) el.append(h('div', { class: 'ar', dir: 'rtl' }, r.nameAr));
+    if (D.labelLang === 'both' || D.labelLang === 'en' || !r.nameAr) el.append(h('div', { class: 'en' }, r.nameEn + (r.locked ? ' 🔒' : '')));
+    const parts = []; if (D.showDims) parts.push(f2(r.L) + ' × ' + f2(r.W) + ' m'); if (D.showArea) parts.push(f2(r.L * r.W) + ' m²');
+    if (parts.length) el.append(h('div', { class: 'dm' }, parts.join(' · ')));
+    return el;
+  }
+  function buildWall(w) {
+    const P = S.plan, D = S.display, i = wallInfo(P, w); if (i.len < 1e-3) return;
+    const ext = i.horizontal ? i.t / 2 : 0, ops = wallOpenings(P, w), rotY = Math.atan2(-i.uz, i.ux);
+    const wm = WALL_MATS[w.material] || WALL_MATS.plaster, col = w.color || (w.exterior ? shade(D.wallColor, 0.93) : D.wallColor);
+    const m = mat('wall', col, { rough: wm.rough }), pick = { type: 'wall', id: w.id };
+    const g = new THREE.Group(); g.position.set((w.x1 + w.x2) / 2, 0, (w.z1 + w.z2) / 2); g.rotation.y = rotY;
+    const seg = (u0, u1, y0, y1) => { if (u1 - u0 > 1e-4 && y1 - y0 > 1e-4) g.add(box(u1 - u0, y1 - y0, i.t, m, (u0 + u1) / 2 - i.len / 2, (y0 + y1) / 2, 0, pick)); };
+    let cur = -ext;
+    for (const o of ops) { seg(cur, o.a, 0, i.H); if (o.h < i.H - 1e-3) seg(o.a, o.b, o.h, i.H); cur = o.b; }
+    seg(cur, i.len + ext, 0, i.H);
+    gStruct.add(g); reg.byKey.set('wall:' + w.id, g);
+    for (const d of P.doors) if (d.hostWallId === w.id) buildDoor(d, w, i, rotY);
+  }
+  function buildDoor(d, w, i, rotY) {
+    const a = Math.max(0, d.offset - d.width / 2), b = Math.min(i.len, d.offset + d.width / 2), wd = b - a; if (wd < 0.05) return;
+    const hh = Math.min(Math.max(d.height, 0.1), i.H), fw = 0.05, pick = { type: 'door', id: d.id }, D = S.display;
+    const g = new THREE.Group(); g.position.set((w.x1 + w.x2) / 2, 0, (w.z1 + w.z2) / 2); g.rotation.y = rotY;
+    const fm = mat('frame', d.frameColor, { rough: 0.5, metal: 0.2 }), dm = DOOR_MATS[d.material] || DOOR_MATS.wood;
+    const lm = mat('door', d.color, { rough: dm.rough, metal: dm.metal, opacity: dm.opacity }), fd = i.t + 0.03, loc = u => u - i.len / 2;
+    g.add(box(fw, hh, fd, fm, loc(a + fw / 2), hh / 2, 0, pick), box(fw, hh, fd, fm, loc(b - fw / 2), hh / 2, 0, pick), box(wd, fw, fd, fm, loc((a + b) / 2), hh - fw / 2, 0, pick));
+    const inner = wd - 2 * fw, lh = hh - fw, open = D.openDoors ? rad(80) : 0, lt = 0.045;
+    const leaf = (hu, dir, lw) => {
+      const lg = new THREE.Group(); lg.position.set(loc(hu), 0, 0);
+      lg.add(box(lw, lh, lt, lm, dir * lw / 2, lh / 2, 0, pick)); lg.rotation.y = -open * dir * d.swing; g.add(lg);
+    };
+    if (d.type === 'single') { if (d.hinge === 'start') leaf(a + fw, 1, inner); else leaf(b - fw, -1, inner); }
+    else if (d.type === 'double') { leaf(a + fw, 1, inner / 2); leaf(b - fw, -1, inner / 2); }
+    else {
+      const dir = d.hinge === 'start' ? 1 : -1, shift = D.openDoors ? dir * inner * 0.9 : 0;
+      g.add(box(inner, lh, 0.04, lm, loc((a + b) / 2) + shift, lh / 2, (i.t / 2 + 0.04) * d.swing, pick));
+    }
+    gStruct.add(g); reg.byKey.set('door:' + d.id, g);
+    const c = wallPoint(w, d.offset), el = h('div', { class: 'lbl3d door' }, d.refNo ? 'D' + d.refNo : 'D');
+    const lab = new CSS2DObject(el); lab.position.set(c.x, hh + 0.25, c.z); lab.visible = S.display.showDoorLabels; gLabels.add(lab); reg.doorLabels.push(lab);
+  }
+  function rebuildStruct() {
+    clearGroup(gStruct); clearGroup(gLabels); clearGroup(gSupp);
+    reg.byKey.clear(); reg.floors = []; reg.ceilings = []; reg.roomLabels = []; reg.doorLabels = [];
+    const P = S.plan, D = S.display, H = P.settings.wallHeight;
+    for (const r of P.rooms) {
+      const q = rectOf(r); if (!(q.w > 0 && q.d > 0)) continue;
+      const fm = FLOOR_MATS[r.floorMaterial] || FLOOR_MATS.concrete, m = mat('floor', D.floorOverride ? D.floorColor : r.floorColor, { rough: fm.rough, metal: fm.metal });
+      const tex = floorTexture(r.floorMaterial, q.w, q.d); if (tex) m.map = tex;
+      const zn = isZone(P, r), f = new THREE.Mesh(new THREE.BoxGeometry(q.w, zn ? 0.09 : 0.08, q.d), m);
+      f.position.set(q.x + q.w / 2, zn ? -0.035 : -0.04, q.z + q.d / 2); f.receiveShadow = true; f.userData.pick = { type: 'room', id: r.id }; f.visible = D.showFloors;
+      gStruct.add(f); reg.floors.push(f); reg.byKey.set('room:' + r.id, f);
+      if (zn) { const an0 = r.anchor || { fx: 0.5, fz: 0.5 }; const lab0 = new CSS2DObject(labelEl(r)); lab0.position.set(q.x + q.w * an0.fx, 0.35, q.z + q.d * an0.fz); lab0.userData.base = D.showRoomLabels && r.showLabel; lab0.visible = lab0.userData.base; gLabels.add(lab0); reg.roomLabels.push({ lab: lab0, id: r.id, size: Math.max(q.w, q.d) }); continue; }
+      const cm = mat('ceiling', D.ceilingColor, { rough: 0.95, opacity: 1 });
+      const c = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.d), cm); c.rotation.x = Math.PI / 2; c.position.set(q.x + q.w / 2, H, q.z + q.d / 2); c.visible = D.showCeilings; c.receiveShadow = false;
+      gStruct.add(c); reg.ceilings.push(c);
+      const an = r.anchor || { fx: 0.5, fz: 0.5 }, lab = new CSS2DObject(labelEl(r)); lab.position.set(q.x + q.w * an.fx, 0.35, q.z + q.d * an.fz); lab.userData.base = D.showRoomLabels && r.showLabel; lab.visible = lab.userData.base; gLabels.add(lab); reg.roomLabels.push({ lab, id: r.id, size: Math.max(q.w, q.d) });
+      const pl = new THREE.PointLight(0xfff0d8, 7, 14, 1.6); pl.position.set(q.x + q.w / 2, Math.max(H - 0.4, 0.5), q.z + q.d / 2); gSupp.add(pl);
+    }
+    for (const w of P.walls) buildWall(w);
+    const b = planBounds(), R = 0.5 * Math.hypot(b.w, b.d) + 6;
+    sun.position.set(b.cx + R * 0.45, R * 1.1, b.cz + R * 0.55); sun.target.position.set(b.cx, 0, b.cz);
+    const sc = sun.shadow.camera; sc.left = -R; sc.right = R; sc.top = R; sc.bottom = -R; sc.near = 1; sc.far = R * 4; sc.updateProjectionMatrix();
+    grid.position.x = Math.round(b.cx); grid.position.z = Math.round(b.cz);
+    applyMode(); needs = true;
+  }
+  function structSig() {
+    const P = S.plan, D = S.display;
+    return JSON.stringify([P.rooms.map(r => [r.id, r.x, r.z, fp(r), r.floorColor, r.floorMaterial, r.showLabel, r.L, r.W, r.nameEn, r.nameAr, r.locked, r.zoneOf, r.anchor]), P.walls, P.doors, P.settings.wallHeight, P.settings.wallThickness,
+      D.wallColor, D.floorOverride, D.floorColor, D.ceilingColor, D.labelLang, D.showDims, D.showArea, D.openDoors]);
+  }
+
+  /* ---- furniture and equipment ---- */
+  function buildEquip(e) {
+    const g = new THREE.Group(), pick = { type: 'equip', id: e.id }, { w, d, h: H } = e;
+    const steel = (c, k) => mat('equip', c || e.color, { rough: 0.38, metal: k == null ? 0.45 : k });
+    const wood = c => mat('equip', c || e.color, { rough: 0.62 });
+    const dark = mat('equip', '#2b3036', { rough: 0.5, metal: 0.2 });
+    const part = (pw, ph, pd, m, x, y, z) => { const mesh = box(pw, ph, pd, m, x, y + ph / 2, z, pick); g.add(mesh); return mesh; };
+    const legs = (m, lw, top, ins) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) part(lw, top, lw, m, sx * (w / 2 - ins), 0, sz * (d / 2 - ins)); };
+    const cyl = (r, ch, m, x, y, z) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, ch, 16), m); c.position.set(x, y + ch / 2, z); c.castShadow = true; c.userData.pick = pick; g.add(c); return c; };
+    const goods = (n, y, seed) => {
+      const cols = ['#c8a165', '#a9bccb', '#d9c9a3'], gm = cols.map(c => mat('equip', c, { rough: 0.85 }));
+      for (let k = 0; k < n; k++) { const bw = w / (n + 0.6) * 0.8, bh = 0.18 + ((seed + k) % 3) * 0.05; part(bw, bh, d * 0.7, gm[(seed + k) % 3], -w / 2 + (k + 0.6) * w / (n + 0.3) , y, 0); }
+    };
+    const rack = (postM, boardM, levels, withGoods) => {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) part(0.04, H, 0.04, postM, sx * (w / 2 - 0.03), 0, sz * (d / 2 - 0.03));
+      for (let k = 0; k < levels; k++) { const y = 0.12 + k * (H - 0.2) / (levels - 1); part(w, 0.03, d, boardM, 0, y, 0); if (withGoods && k < levels - 1) goods(3, y + 0.03, k + Math.round(e.x * 3)); }
+    };
+    switch (e.type) {
+      case 'diningTable': part(w, 0.04, d, wood(), 0, H - 0.04, 0); legs(wood(shade(e.color, 0.8)), 0.05, H - 0.04, 0.07); break;
+      case 'chair': { const m = wood(); legs(m, 0.04, 0.45, 0.03); part(w, 0.05, d, m, 0, 0.45, 0); part(w, H - 0.5, 0.04, m, 0, 0.5, d / 2 - 0.02); break; }
+      case 'shelf': rack(steel('#7c8791'), steel('#aeb7bf', 0.3), 4, true); break;
+      case 'coldShelf': rack(steel('#7c8791'), steel(e.color, 0.3), 5, false); { const gm = mat('equip', '#e8f1f5', { rough: .6 }); for (let k = 0; k < 4; k++) part(w * .8, 0.22, d * .7, gm, 0, 0.15 + k * (H - .2) / 4 + .03, 0); } break;
+      case 'pallet': { const m = wood(); part(w, 0.03, d, m, 0, 0.1, 0); for (const z of [-d / 2 + 0.06, 0, d / 2 - 0.06]) part(w, 0.1, 0.1, m, 0, 0, z); part(w * 0.92, H - 0.13, d * 0.9, mat('equip', '#c8a165', { rough: 0.85 }), 0, 0.13, 0); break; }
+      case 'prepTable': { const m = steel(); part(w, 0.04, d, m, 0, H - 0.04, 0); legs(m, 0.05, H - 0.04, 0.05); part(w - 0.1, 0.02, d - 0.1, m, 0, 0.22, 0); break; }
+      case 'counter': { part(w, H - 0.04, d * 0.96, wood(), 0, 0, 0); part(w + 0.02, 0.04, d, mat('equip', '#6f7780', { rough: 0.3 }), 0, H - 0.04, 0); break; }
+      case 'sink': {
+        const m = steel(); part(w, H - 0.04, d * 0.96, m, 0, 0, 0); part(w, 0.04, d, m, 0, H - 0.04, 0);
+        part(w * 0.72, 0.012, d * 0.6, dark, 0, H, 0.02); cyl(0.02, 0.3, steel('#dfe5ea'), 0, H, -d / 2 + 0.08); part(0.03, 0.03, 0.18, steel('#dfe5ea'), 0, H + 0.3, -d / 2 + 0.17); break;
+      }
+      case 'dishRack': rack(steel('#9aa4ad'), steel(e.color, 0.3), 3, false); for (let k = 0; k < 2; k++) part(w * .8, 0.16, d * .5, mat('equip', '#f2f2ee', { rough: .4 }), 0, 0.15 + k * (H - .2) / 2 + .03, 0); break;
+      case 'dishwasher': { const m = steel(); part(w, H, d, m, 0, 0, 0); part(w * 0.9, 0.08, 0.02, dark, 0, H * 0.82, d / 2 + 0.01); part(w * 0.7, 0.03, 0.04, steel('#dfe5ea'), 0, H * 0.7, d / 2 + 0.03); break; }
+      case 'fridge': { const m = steel(); part(w, H, d, m, 0, 0, 0); part(w * 0.98, 0.012, 0.012, dark, 0, H * 0.62, d / 2 + 0.006); for (const [y0, hh] of [[H * 0.1, H * 0.35], [H * 0.68, H * 0.25]]) part(0.03, hh, 0.04, steel('#dfe5ea'), w * 0.38, y0, d / 2 + 0.03); break; }
+      case 'oven': { const m = steel(); part(w, H, d, m, 0, 0, 0); part(w * 0.9, 0.12, 0.02, dark, 0, H * 0.85, d / 2 + 0.01); part(w * 0.7, H * 0.28, 0.02, dark, 0, H * 0.38, d / 2 + 0.01); part(w * 0.6, 0.03, 0.04, steel('#dfe5ea'), 0, H * 0.7, d / 2 + 0.035); break; }
+      case 'range': {
+        const m = steel(); part(w, H - 0.05, d, m, 0, 0, 0); part(w, 0.05, d, dark, 0, H - 0.05, 0);
+        for (const [ox, oz] of [[-.22, -.22], [.22, -.22], [-.22, .22], [.22, .22]]) cyl(Math.min(w, d) * 0.12, 0.025, steel('#6b737b', 0.6), ox * w, H, oz * d);
+        part(w * 0.75, H * 0.35, 0.02, dark, 0, H * 0.25, d / 2 + 0.01); part(w * 0.6, 0.03, 0.04, steel('#dfe5ea'), 0, H * 0.7, d / 2 + 0.035); break;
+      }
+      case 'mixer': { const m = steel(); part(w * 0.8, 0.06, d * 0.9, m, 0, 0, 0.02); part(w * 0.28, H * 0.78, d * 0.28, m, 0, 0.06, -d * 0.28); part(w * 0.5, 0.14, d * 0.6, m, 0, H * 0.7, -d * 0.05); cyl(Math.min(w, d) * 0.3, H * 0.32, steel('#dfe5ea', 0.7), 0, 0.1, d * 0.14); break; }
+      case 'panel': { part(w, H, d, steel(), 0, 0, 0); part(w * 0.46, H * 0.9, 0.01, dark, -w * 0.25, H * 0.05, d / 2 + 0.005); part(w * 0.46, H * 0.9, 0.01, dark, w * 0.25, H * 0.05, d / 2 + 0.005); part(0.05, 0.12, 0.03, mat('equip', '#c0392b', { rough: 0.5 }), 0, H * 0.5, d / 2 + 0.02); break; }
+      case 'hood': { const m = steel(); part(w, 0.32, d, m, 0, 0, 0); part(w * 0.97, 0.02, d * 0.97, dark, 0, -0.005, 0); part(Math.min(0.55, w * 0.4), H - 0.32, Math.min(0.55, d * 0.5), m, 0, 0.32, -d * 0.15); break; }
+      default: part(w, H, d, steel(), 0, 0, 0);
+    }
+    g.position.set(e.x, e.elev || 0, e.z); g.rotation.y = -rad(e.rot || 0);
+    return g;
+  }
+  const eqCache = new Map();
+  function syncEquipment() {
+    const P = S.plan, D = S.display, seen = new Set();
+    for (const e of P.equipment) {
+      seen.add(e.id);
+      const sig = JSON.stringify([e.type, e.x, e.z, e.w, e.d, e.h, e.elev, e.rot, e.color]);
+      let c = eqCache.get(e.id);
+      if (!c || c.sig !== sig) {
+        if (c) { gEquip.remove(c.g); disposeObj(c.g); }
+        c = { sig, g: buildEquip(e) }; gEquip.add(c.g); eqCache.set(e.id, c); needs = true;
+      }
+      const vis = D.showEquipment && !e.hidden;
+      if (c.g.visible !== vis) { c.g.visible = vis; needs = true; }
+      reg.byKey.set('equip:' + e.id, c.g);
+    }
+    for (const [id, c] of eqCache) if (!seen.has(id)) { gEquip.remove(c.g); disposeObj(c.g); eqCache.delete(id); reg.byKey.delete('equip:' + id); needs = true; }
+    applyMode();
+  }
+
+  /* ---- rendering modes, display options ---- */
+  let needs = true, lastShadow = true, lastStruct = '';
+  function applyMode() {
+    const mode = S.display.mode3d;
+    scene.traverse(o => {
+      if (!o.material || o.isLine || o.isPoints) return;
+      for (const m of [].concat(o.material)) {
+        const u = m.userData || {}; if (u.kind === 'ground') continue;
+        m.wireframe = mode === 'wire';
+        let tr = !!u.baseTransparent, op = u.baseOpacity == null ? 1 : u.baseOpacity, dw = true;
+        if (mode === 'xray' && (u.kind === 'wall' || u.kind === 'ceiling' || u.kind === 'frame')) { tr = true; op = Math.min(op, u.kind === 'frame' ? 0.55 : 0.22); dw = false; }
+        if (m.transparent !== tr || m.opacity !== op || m.depthWrite !== dw) { m.transparent = tr; m.opacity = op; m.depthWrite = dw; m.needsUpdate = true; }
+      }
+    });
+    needs = true;
+  }
+  function applyDisplay() {
+    const D = S.display;
+    ground.material.color.set(D.groundColor); grid.visible = D.showGrid3d;
+    hemi.intensity = 0.8 * D.light; sun.intensity = 1.5 * D.light;
+    gSupp.visible = D.suppLights; gSupp.children.forEach(l => { l.intensity = 7 * D.light; });
+    if (D.shadows !== lastShadow) { lastShadow = D.shadows; renderer.shadowMap.enabled = D.shadows; sun.castShadow = D.shadows; scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); }
+    reg.floors.forEach(f => { f.visible = D.showFloors; }); reg.ceilings.forEach(c => { c.visible = D.showCeilings; });
+    reg.doorLabels.forEach(l => { l.visible = D.showDoorLabels; });
+    for (const { lab, id } of reg.roomLabels) { const r = roomById(S.plan, id); lab.userData.base = D.showRoomLabels && !!r && r.showLabel; lab.visible = lab.userData.base; }
+    needs = true;
+  }
+  /* Keep 3D labels legible: drop detail lines for rooms that are small on screen. */
+  function updateLabels() {
+    const hh = host.clientHeight || 600, k = hh / 2 / Math.tan(rad(camera.fov / 2));
+    for (const { lab, size } of reg.roomLabels) {
+      const px = size * k / Math.max(0.5, camera.position.distanceTo(lab.position)), el = lab.element;
+      const ar = el.querySelector('.ar'), dm = el.querySelector('.dm');
+      lab.visible = !!lab.userData.base && px > 55;
+      if (ar) ar.style.display = px > 150 ? '' : 'none';
+      if (dm) dm.style.display = px > 115 ? '' : 'none';
+      const en = el.querySelector('.en'); if (en && !ar) en.style.display = '';
+    }
+  }
+
+  /* ---- selection visuals ---- */
+  let selHelper = null;
+  function updateSelection() {
+    if (selHelper) { gSel.remove(selHelper); disposeObj(selHelper); selHelper = null; }
+    for (const f of reg.floors) { f.material.emissive.set(0x000000); f.material.emissiveIntensity = 0; }
+    const sel = S.sel; if (!sel) { needs = true; return; }
+    const o = reg.byKey.get(sel.type + ':' + sel.id);
+    if (sel.type === 'room') {
+      const r = roomById(S.plan, sel.id); if (!r) return; const q = rectOf(r);
+      const grp = new THREE.Group();
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.d), new THREE.MeshBasicMaterial({ color: 0xf08c00, transparent: true, opacity: 0.28, depthWrite: false }));
+      pl.rotation.x = -Math.PI / 2; pl.position.set(q.x + q.w / 2, 0.02, q.z + q.d / 2); grp.add(pl);
+      const ln = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(q.w, 0.2, q.d)), new THREE.LineBasicMaterial({ color: 0xf08c00 }));
+      ln.position.set(q.x + q.w / 2, 0.1, q.z + q.d / 2); grp.add(ln); selHelper = grp; gSel.add(grp);
+    } else if (o && o.visible) { selHelper = new THREE.BoxHelper(o, 0xf08c00); gSel.add(selHelper); }
+    needs = true;
+  }
+
+  /* ---- camera ---- */
+  let tween = null;
+  const modelInfo = () => { const b = planBounds(); return { cx: b.cx, cz: b.cz, r: 0.5 * Math.hypot(b.w, b.d) }; };
+  /* Find camera distance and centring so the whole model fills the current viewport. */
+  function solvePose(dir, t0) {
+    const H = S.plan.settings.wallHeight, pts = [];
+    for (const r of S.plan.rooms) { const q = rectOf(r); for (const x of [q.x, q.x + q.w]) for (const z of [q.z, q.z + q.d]) for (const y of [0, H]) pts.push(new THREE.Vector3(x, y, z)); }
+    const cam = new THREE.PerspectiveCamera(camera.fov, camera.aspect, 0.1, 800), t = t0.clone(); let d = 6;
+    const place = () => { cam.position.copy(t).addScaledVector(dir, d); cam.lookAt(t); cam.updateMatrixWorld(true); };
+    for (let pass = 0; pass < 4; pass++) {
+      d = 6;
+      for (let i = 0; i < 260; i++) { place(); if (pts.every(p => { const v = p.clone().project(cam); return Math.abs(v.x) < 0.92 && Math.abs(v.y) < 0.9 && v.z < 1; })) break; d *= 1.03; }
+      place();
+      let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+      for (const p of pts) { const v = p.clone().project(cam); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+      const ox = (x0 + x1) / 2, oy = (y0 + y1) / 2; if (Math.abs(ox) < 0.01 && Math.abs(oy) < 0.01) break;
+      const hh = Math.tan(rad(camera.fov / 2)) * d, e = cam.matrixWorld.elements;
+      t.addScaledVector(new THREE.Vector3(e[0], e[1], e[2]), ox * hh * camera.aspect).addScaledVector(new THREE.Vector3(e[4], e[5], e[6]), oy * hh);
+    }
+    return { p: t.clone().addScaledVector(dir, d), t };
+  }
+  function pose(name) {
+    const m = modelInfo(), H = S.plan.settings.wallHeight;
+    let dir, t;
+    if (name === 'top') { dir = new THREE.Vector3(0, 1, 0.0008); t = new THREE.Vector3(m.cx, 0, m.cz); }
+    else if (name === 'front') { dir = new THREE.Vector3(0, 0.1, 1); t = new THREE.Vector3(m.cx, H * 0.4, m.cz); }
+    else if (name === 'side') { dir = new THREE.Vector3(1, 0.1, 0); t = new THREE.Vector3(m.cx, H * 0.4, m.cz); }
+    else { dir = new THREE.Vector3(0.55, 0.62, 0.72); t = new THREE.Vector3(m.cx, 0, m.cz); }
+    return solvePose(dir.normalize(), t);
+  }
+  function flyTo(p, t, animate) {
+    if (!animate || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { camera.position.copy(p); controls.target.copy(t); controls.update(); needs = true; tween = null; return; }
+    tween = { t0: performance.now(), dur: 750, p0: camera.position.clone(), a0: controls.target.clone(), p1: p, a1: t };
+  }
+  function stepTween(now) {
+    if (!tween) return false;
+    const k = Math.min(1, (now - tween.t0) / tween.dur), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    camera.position.lerpVectors(tween.p0, tween.p1, e); controls.target.lerpVectors(tween.a0, tween.a1, e);
+    if (k >= 1) tween = null; return true;
+  }
+  function setPreset(name, animate = true) {
+    if (name === 'focus') { const o = S.sel && S.sel.type === 'room' ? S.sel.id : null; if (!o) { toast('Select a room first (click its floor or choose it in the Rooms list)'); return; } focusRoom(o); return; }
+    const p = pose(name === 'reset' ? 'iso' : name); flyTo(p.p, p.t, animate);
+  }
+  function focusRoom(id) {
+    const r = roomById(S.plan, id); if (!r) return; const q = rectOf(r), cx = q.x + q.w / 2, cz = q.z + q.d / 2;
+    const dist = Math.max(8, Math.max(q.w, q.d) / (2 * Math.tan(rad(camera.fov / 2))) * 1.25 + 2), dir = new THREE.Vector3(0.38, 0.9, 0.5).normalize();
+    flyTo(new THREE.Vector3(cx, 0, cz).addScaledVector(dir, dist), new THREE.Vector3(cx, 0.5, cz), true);
+  }
+  function fitCamera(animate) { const p = pose('iso'); flyTo(p.p, p.t, !!animate); }
+
+  /* ---- picking: click selects, drag orbits ---- */
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
+  function pickAt(ev) {
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    for (const hit of ray.intersectObjects([gStruct, gEquip], true)) {
+      let o = hit.object, vis = true; for (let p = o; p; p = p.parent) if (!p.visible) vis = false;
+      if (vis && o.userData.pick) return o.userData.pick;
+    }
+    return null;
+  }
+  renderer.domElement.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, b: e.button }; });
+  renderer.domElement.addEventListener('pointerup', e => {
+    if (!down || down.b !== 0 || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) { down = null; return; } down = null;
+    const hit = pickAt(e); if (hit) select(hit.type, hit.id); else select(null);
+  });
+  renderer.domElement.addEventListener('dblclick', e => { const hit = pickAt(e); if (hit && hit.type === 'room') focusRoom(hit.id); });
+
+  /* ---- loop, resize, export ---- */
+  function resize() {
+    const w = host.clientWidth, hh = host.clientHeight; if (!w || !hh) return;
+    renderer.setSize(w, hh, false); labelR.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix(); needs = true;
+  }
+  new ResizeObserver(resize).observe(host); resize();
+  function sync() {
+    const sig = structSig();
+    if (sig !== lastStruct) { lastStruct = sig; rebuildStruct(); }
+    syncEquipment(); applyDisplay(); updateSelection();
+  }
+  function render() { renderer.render(scene, camera); labelR.render(scene, camera); needs = false; }
+  function frame(now) {
+    if (!host.clientWidth) return;
+    if (S.dirty3d) { sync(); S.dirty3d = false; }
+    const tw = stepTween(now), cc = controls.update();
+    if (selHelper && selHelper.isBoxHelper && (tw || cc)) { /* box helper is static in world space */ }
+    if (tw || cc || needs) { updateLabels(); render(); }
+  }
+  function png() {
+    const w0 = host.clientWidth, h0 = host.clientHeight;
+    if (!w0) { renderer.setSize(1400, 880, false); camera.aspect = 1400 / 880; camera.updateProjectionMatrix(); if (S.dirty3d) { sync(); S.dirty3d = false; } }
+    renderer.render(scene, camera);
+    const url = renderer.domElement.toDataURL('image/png');
+    if (!w0) { resize(); }
+    return url;
+  }
+  function getCam() { return { position: camera.position.toArray().map(r3), target: controls.target.toArray().map(r3) }; }
+  function setCam(c) {
+    if (c && Array.isArray(c.position) && Array.isArray(c.target) && c.position.concat(c.target).every(v => typeof v === 'number' && isFinite(v)) && c.position.length === 3 && c.target.length === 3) {
+      camera.position.fromArray(c.position); controls.target.fromArray(c.target); controls.update(); needs = true; return true;
+    }
+    return false;
+  }
+  controls.addEventListener('change', () => { needs = true; });
+  controls.addEventListener('end', () => scheduleSave());
+  return { scene, camera, controls, frame, resize, sync, selectionChanged: () => { updateSelection(); }, fitCamera, setPreset, focusRoom, png, get: getCam, set: setCam, applyMode, forceRender: () => { needs = true; }, apply: () => { applyDisplay(); applyMode(); } };
+}
+/* ---------------------------------------------------------------------
+   8. UI: toolbar, lists, inspector, display, checks, help, files
+   --------------------------------------------------------------------- */
+const TOOL_DEFS = [
+  ['select', 'Select', 'V', '↖'], ['move', 'Move', 'M', '✥'], ['resize', 'Resize', 'S', '⤡'], ['rotate', 'Rotate', 'T', '⟳'],
+  null, ['addRoom', 'Room', 'A', '▭'], ['addWall', 'Wall', 'W', '▬'], ['addDoor', 'Door', 'D', '⌂'], ['addEquip', 'Equipment', 'Q', '◧']
+];
+function setTool(t) {
+  S.tool = t; V2.wallStart = null; V2.drag = null; V2.snapMark = null;
+  $$('#toolbar .tool[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  $('#hint2d').textContent = TOOL_HINTS[t]; $('#stTip').textContent = t === 'addEquip' ? 'Placing: ' + LIB[S.libType].label : '';
+  S.dirty2d = true;
+}
+function buildToolbar() {
+  const tg1 = $('#tgSel'), tg2 = $('#tgAdd'), tg3 = $('#tgAct'), tg4 = $('#tgView');
+  let g = tg1;
+  for (const t of TOOL_DEFS) {
+    if (!t) { g = tg2; continue; }
+    g.append(h('button', { class: 'tool', 'data-tool': t[0], title: t[1] + ' (' + t[2] + ')', onclick: () => setTool(t[0]) }, t[3] + ' ' + t[1], h('kbd', {}, t[2])));
+  }
+  tg3.append(
+    h('button', { class: 'tool', title: 'Delete selection (Del)', onclick: deleteSelection }, '🗑 Delete', h('kbd', {}, 'Del')),
+    h('button', { class: 'tool', title: 'Duplicate selection (Ctrl+D)', onclick: duplicateSelection }, '⧉ Duplicate'),
+    h('button', { class: 'tool', title: 'Rebuild generated walls from the current rooms (manual walls are kept)', onclick: rebuildAllWalls }, '▦ Rebuild walls'));
+  tg4.append(
+    h('button', { class: 'tool', id: 'tSnapGrid', title: 'Snap to grid (G)', onclick: () => { edit(p => { p.settings.snapGrid = !p.settings.snapGrid; }); } }, '▦ Grid snap'),
+    h('button', { class: 'tool', id: 'tSnapCorner', title: 'Snap to corners and wall endpoints', onclick: () => { edit(p => { p.settings.snapCorners = !p.settings.snapCorners; }); } }, '◎ Corner snap'));
+}
+function setViewMode(m) {
+  S.viewMode = m; const v = $('#views'); v.classList.remove('m-2d', 'm-3d', 'm-split'); v.classList.add('m-' + m);
+  $$('#viewSeg .tb').forEach(b => b.classList.toggle('on', b.dataset.view === m));
+  S.dirty2d = S.dirty3d = true; scheduleSave();
+  requestAnimationFrame(() => { resize2D(); if (S.v3) S.v3.resize(); });
+}
+function updateStack() { const v = $('#views'); v.classList.toggle('stack', v.clientWidth < 1000); requestAnimationFrame(() => { resize2D(); if (S.v3) S.v3.resize(); }); }
+
+/* ---- tab handling ---- */
+function initTabs(tabsSel, bodySel, onSwitch) {
+  $$(tabsSel + ' button').forEach(b => b.addEventListener('click', () => switchTab(tabsSel, bodySel, b.dataset.tab, onSwitch)));
+}
+function switchTab(tabsSel, bodySel, name, cb) {
+  $$(tabsSel + ' button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  $$(bodySel + ' > section').forEach(s => s.classList.toggle('on', s.dataset.tab === name));
+  S.dirtyUI = true; S.dirtyInsp = true;
+}
+const showRightTab = n => { switchTab('#rightTabs', '#rightBody', n); $('#right').classList.add('open'); };
+const showLeftTab = n => switchTab('#leftTabs', '#leftBody', n);
+const activeTab = body => { const s = $(body + ' > section.on'); return s ? s.dataset.tab : ''; };
+
+/* ---- form helpers ---- */
+function fText(label, val, commit, o) {
+  o = o || {};
+  const inp = h('input', { type: 'text', value: val, dir: o.dir || 'auto', list: o.list, maxlength: 120 });
+  inp.addEventListener('change', () => { commit(inp.value); S.forceInsp = true; });
+  return h('label', { class: 'fld' }, h('span', {}, label), inp);
+}
+function fNum(label, val, commit, o) {
+  o = o || {};
+  const inp = h('input', { type: 'number', step: o.step || 0.01, value: fnum(val), min: o.min, max: o.max, disabled: o.disabled });
+  inp.addEventListener('change', () => {
+    const v = parseFloat(inp.value);
+    if (!isFinite(v)) { toast(label + ': please enter a number', true); inp.value = fnum(val); return; }
+    if ((o.min != null && v < o.min) || (o.max != null && v > o.max)) { toast(label + ' must be between ' + o.min + ' and ' + o.max, true); inp.value = fnum(val); return; }
+    commit(v); S.forceInsp = true;
+  });
+  return h('label', { class: 'fld' }, h('span', {}, label + (o.unit === false ? '' : ' (' + (o.unit || 'm') + ')')), inp);
+}
+function fSelect(label, val, opts, commit) {
+  const sel = h('select', {}, opts.map(([v, l]) => h('option', { value: v, selected: String(v) === String(val) }, l)));
+  sel.addEventListener('change', () => { commit(sel.value); S.forceInsp = true; });
+  return h('label', { class: 'fld' }, h('span', {}, label), sel);
+}
+function fCheck(label, val, commit) {
+  const inp = h('input', { type: 'checkbox', checked: !!val });
+  inp.addEventListener('change', () => { commit(inp.checked); S.forceInsp = true; });
+  return h('label', { class: 'fld chk' }, inp, h('span', {}, label));
+}
+function fColor(label, val, commit, live) {
+  const inp = h('input', { type: 'color', value: val });
+  inp.addEventListener(live ? 'input' : 'change', () => { commit(inp.value); if (!live) S.forceInsp = true; });
+  return h('label', { class: 'fld' }, h('span', {}, label), inp);
+}
+const row = (...k) => h('div', { class: 'row' }, ...k);
+const btn = (label, fn, cls) => h('button', { class: 'btn sm ' + (cls || ''), onclick: fn }, label);
+const issuesFor = (type, id) => S.issues.filter(i => i.target && i.target.type === type && i.target.id === id);
+function issueNode(i) {
+  return h('div', { class: 'iss ' + i.sev, onclick: () => goToTarget(i.target) }, h('span', {}, i.sev === 'error' ? '⛔' : i.sev === 'warn' ? '⚠️' : 'ℹ️'), h('div', {}, i.msg, i.target ? h('small', {}, ' — click to locate') : null));
+}
+function goToTarget(t) {
+  if (!t) return;
+  const o = findSel(t); if (!o) return;
+  select(t.type, t.id);
+  const c = objCenter(t.type, o);
+  if (V2.w) { const [sx, sy] = toS(c.x, c.z); if (sx < 40 || sy < 40 || sx > V2.w - 40 || sy > V2.h - 40) { S.cam2.cx = c.x; S.cam2.cz = c.z; } }
+  S.highlight = { target: t, until: performance.now() + 2500 }; S.dirty2d = true;
+  showRightTab('insp');
+}
+
+/* ---- left panel: rooms, objects, areas, library ---- */
+function renderRooms(sec) {
+  const P = S.plan;
+  sec.replaceChildren(
+    h('div', { class: 'note' }, 'Click to select · double-click to focus in 3D. Lock keeps a room from being moved or resized.'),
+    ...P.rooms.map(r => h('div', { class: 'li' + (S.sel && S.sel.type === 'room' && S.sel.id === r.id ? ' sel' : ''), onclick: () => select('room', r.id), ondblclick: () => { select('room', r.id); if (S.v3) S.v3.focusRoom(r.id); } },
+      h('span', { class: 'dot', style: { background: r.floorColor } }),
+      h('div', { class: 'nm' }, h('b', {}, r.nameEn), r.nameAr ? h('small', { class: 'ar', dir: 'rtl', style: { display: 'block', textAlign: 'left' } }, r.nameAr) : null, h('small', {}, (isZone(P, r) ? 'zone · ' : '') + f2(r.L) + ' × ' + f2(r.W) + ' m · ' + f2(r.L * r.W) + ' m²')),
+      h('button', { class: 'ic', title: 'Focus camera in 3D', onclick: e => { e.stopPropagation(); select('room', r.id); if (S.v3) { S.v3.focusRoom(r.id); } else toast('3D view unavailable'); } }, '🎯'),
+      h('button', { class: 'ic', title: r.showLabel ? 'Hide label' : 'Show label', onclick: e => { e.stopPropagation(); edit(() => { r.showLabel = !r.showLabel; }); } }, r.showLabel ? '👁' : '🚫'),
+      h('button', { class: 'ic', title: r.locked ? 'Unlock' : 'Lock', onclick: e => { e.stopPropagation(); edit(() => { r.locked = !r.locked; }); } }, r.locked ? '🔒' : '🔓'))),
+    h('div', { class: 'btns' }, btn('＋ Add room (draw on plan)', () => { setTool('addRoom'); }, 'pri')));
+}
+let objFilter = 'doors';
+function renderObjects(sec) {
+  const P = S.plan, isSel = (t, id) => S.sel && S.sel.type === t && S.sel.id === id ? ' sel' : '';
+  const items = [];
+  if (objFilter === 'walls') P.walls.forEach((w, k) => { const i = wallInfo(P, w); items.push(h('div', { class: 'li' + isSel('wall', w.id), onclick: () => select('wall', w.id) }, h('div', { class: 'nm' }, h('b', {}, 'Wall ' + (k + 1) + ' · ' + f2(i.len) + ' m'), h('small', {}, w.id + (w.exterior ? ' · exterior' : ' · interior') + (w.manual ? ' · manual' : '') + (w.locked ? ' · locked' : ''))))); });
+  else if (objFilter === 'doors') P.doors.forEach(d => { items.push(h('div', { class: 'li' + isSel('door', d.id), onclick: () => select('door', d.id) }, h('div', { class: 'nm' }, h('b', {}, (d.refNo ? 'Door ' + d.refNo : d.id) + ' · ' + d.type + ' · ' + f2(d.width) + ' m'), h('small', {}, (d.hostWallId ? '' : '⛔ no host wall · ') + (d.sideA || '?') + ' ↔ ' + (d.sideB || '?'))))); });
+  else P.equipment.forEach(e => { items.push(h('div', { class: 'li' + isSel('equip', e.id), onclick: () => select('equip', e.id) }, h('span', { class: 'dot', style: { background: e.color } }), h('div', { class: 'nm' }, h('b', {}, e.name || LIB[e.type].label), h('small', {}, f2(e.w) + ' × ' + f2(e.d) + ' × ' + f2(e.h) + ' m' + (e.hidden ? ' · hidden' : ''))),
+    h('button', { class: 'ic', title: e.hidden ? 'Show' : 'Hide', onclick: ev => { ev.stopPropagation(); edit(() => { e.hidden = !e.hidden; }); } }, e.hidden ? '🚫' : '👁'))); });
+  sec.replaceChildren(
+    h('div', { class: 'seg' }, [['doors', 'Doors (' + P.doors.length + ')'], ['walls', 'Walls (' + P.walls.length + ')'], ['equip', 'Equipment (' + P.equipment.length + ')']].map(([k, l]) => h('button', { class: objFilter === k ? 'on' : '', onclick: () => { objFilter = k; S.dirtyUI = true; } }, l))),
+    ...items);
+}
+function renderSchedule(sec) {
+  const P = S.plan; let refT = 0, curT = 0, modT = 0;
+  const rows = [...P.rooms.filter(r => !isZone(P, r)), ...P.rooms.filter(r => isZone(P, r))].map(r => {
+    const f = fp(r), ra = r.ref.L * r.ref.W, ca = r.L * r.W, ma = f.w * f.d, zn = isZone(P, r); if (!zn) { refT += ra; curT += ca; modT += ma; }
+    const diff = Math.abs(ca - ra) > 1e-6, mdiff = Math.abs(ma - ca) > 1e-6;
+    return h('tr', { class: 'clk' + (S.sel && S.sel.id === r.id ? ' sel' : ''), onclick: () => select('room', r.id) },
+      h('td', { title: r.nameAr, style: zn ? { fontStyle: 'italic', color: '#5d6b7a' } : {} }, (zn ? '↳ ' : '') + r.nameEn), h('td', {}, f2(r.ref.L) + '×' + f2(r.ref.W)), h('td', { style: diff ? { color: '#c2410c', fontWeight: 700 } : {} }, f2(r.L) + '×' + f2(r.W)),
+      h('td', {}, f2(ca)), h('td', { style: mdiff ? { color: '#c92a2a', fontWeight: 700 } : {} }, f2(ma)));
+  });
+  sec.replaceChildren(
+    h('table', { class: 't' }, h('thead', {}, h('tr', {}, ['Space', 'Ref L×W', 'Current L×W', 'Stated m²', 'Modeled m²'].map(x => h('th', {}, x)))), h('tbody', {}, rows),
+      h('tfoot', {}, h('tr', { class: 'tot' }, h('td', {}, 'Sum of listed spaces'), h('td', {}, ''), h('td', {}, ''), h('td', {}, f2(curT)), h('td', {}, f2(modT))))),
+    h('div', { class: 'card', style: { marginTop: '8px' } },
+      h('div', { class: 'kv' }, h('b', {}, 'Initial reference total'), h('span', {}, f2(refT) + ' m²'), h('b', {}, 'Current stated total'), h('span', {}, f2(curT) + ' m²'), h('b', {}, 'Current modeled total'), h('span', {}, f2(modT) + ' m²')),
+      h('p', { class: 'note' }, 'This is the sum of the listed space areas (length × width of each space). Sub-zones (↳) lie inside another room and are not added. It is not a verified building footprint or gross floor area.')));
+}
+function renderLibrary(sec) {
+  const D = S.display;
+  sec.replaceChildren(
+    h('div', { class: 'note' }, 'Choose an item, then click on the plan to place it (or use the button). All furniture and equipment are illustrative.'),
+    h('div', { class: 'lib' }, Object.entries(LIB).map(([k, v]) => h('button', { class: S.libType === k && S.tool === 'addEquip' ? 'on' : '', onclick: () => { S.libType = k; setTool('addEquip'); S.dirtyUI = true; } }, v.label, h('small', {}, f2(v.w) + ' × ' + f2(v.d) + ' × ' + f2(v.h) + ' m')))),
+    h('div', { class: 'btns' }, btn('Place selected type at plan centre', () => { const b = V2.w ? { x: S.cam2.cx, z: S.cam2.cz } : planBounds(); const st = eqStep(); addEquipment(S.libType, Math.round(b.x / st) * st, Math.round(b.z / st) * st); }, 'pri')),
+    fCheck('Show furniture and equipment (global)', D.showEquipment, v => setDisplay('showEquipment', v)));
+}
+
+/* ---- inspector ---- */
+function renderInspector(sec) {
+  const o = selObj(), P = S.plan;
+  if (!o) return renderPlanSettings(sec);
+  const t = S.sel.type;
+  const head = h('h3', {}, ({ room: '▭ Room', wall: '▬ Wall', door: '⌂ Door', equip: '◧ Equipment' })[t] + ' — ' + (t === 'room' ? o.nameEn : t === 'door' ? (o.refNo ? 'Door ' + o.refNo : o.id) : t === 'equip' ? (o.name || o.type) : o.id));
+  const issues = issuesFor(t, o.id);
+  const probs = issues.length ? h('div', {}, h('h4', {}, 'Warnings for this object'), issues.map(issueNode)) : null;
+  const body = ({ room: inspRoom, wall: inspWall, door: inspDoor, equip: inspEquip })[t](o);
+  sec.replaceChildren(...[h('div', { class: 'card' }, head, ...[].concat(body)), probs ? h('div', { class: 'card' }, probs) : null,
+    h('div', { class: 'btns' }, btn('Deselect', () => select(null)))].filter(Boolean));
+}
+function inspRoom(r) {
+  const P = S.plan, f = fp(r), st = stExt(r), rf = r.ref, tk = P.settings.wallThickness, area = r.L * r.W, marea = f.w * f.d, refArea = rf.L * rf.W;
+  const kv = (k, v, warn) => [h('b', {}, k), h('span', { style: warn ? { color: '#c2410c', fontWeight: 700 } : {} }, v)];
+  const dash = h('div', { class: 'kv', style: { marginBottom: '8px', background: '#f7f9fb', padding: '6px', borderRadius: '6px' } },
+    ...kv('English', r.nameEn), h('b', {}, 'العربية'), h('span', { dir: 'rtl', class: 'ar', style: { textAlign: 'left' } }, r.nameAr || '—'),
+    ...kv('Initial reference', f2(rf.L) + ' × ' + f2(rf.W) + ' m = ' + f2(refArea) + ' m²'),
+    ...kv('Current stated', f2(r.L) + ' × ' + f2(r.W) + ' m = ' + f2(area) + ' m²', Math.abs(area - refArea) > 1e-6 || r.L !== rf.L || r.W !== rf.W),
+    ...kv('Modeled footprint', f2(f.w) + ' (X) × ' + f2(f.d) + ' (Z) m = ' + f2(marea) + ' m²', Math.abs(marea - area) > 1e-6 || Math.abs(f.w - st.w) > 1e-6),
+    ...kv('Clear inside ≈', f2(Math.max(0, f.w - tk)) + ' × ' + f2(Math.max(0, f.d - tk)) + ' m (centerline − ' + f2(tk) + ')'),
+    ...kv('Corner (X, Z)', f2(r.x) + ', ' + f2(r.z) + ' m'),
+    ...(r.approx ? [h('b', {}, 'Assumption'), h('span', { style: { fontStyle: 'italic' } }, r.approx)] : []));
+  const names = P.rooms.map(x => x.nameEn);
+  return [dash,
+    fText('English name', r.nameEn, v => { if (!v.trim()) { toast('Name cannot be empty', true); return; } edit(() => { r.nameEn = v.trim(); }); }),
+    fText('Arabic name', r.nameAr, v => edit(() => { r.nameAr = v.trim(); }), { dir: 'rtl' }),
+    fSelect('Functional category', r.category, Object.entries(CATEGORIES).map(([k, v]) => [k, v.label]), v => edit(() => { r.category = v; })),
+    row(fNum('Length (stated)', r.L, v => setStated(r, v, r.W), { min: 0.1, max: 200 }), fNum('Width (stated)', r.W, v => setStated(r, r.L, v), { min: 0.1, max: 200 })),
+    fSelect('Zone inside (no walls)', r.zoneOf || '', [['', '— none (own walls) —'], ...P.rooms.filter(x => x.id !== r.id && !x.zoneOf).map(x => [x.id, x.nameEn])], v => patchRoom(r, { zoneOf: v || null })),
+    fSelect('Orientation', r.rot, [[0, 'Length along X (horizontal)'], [90, 'Length along Z (vertical)']], v => { if (+v !== r.rot) rotateRoom(r); }),
+    row(fNum('X (left edge)', r.x, v => patchRoom(r, { x: r2(v) }, { carry: true }), { min: -1000, max: 1000 }), fNum('Z (top edge)', r.z, v => patchRoom(r, { z: r2(v) }, { carry: true }), { min: -1000, max: 1000 })),
+    fCheck('Modeled footprint follows stated dimensions', r.linkModel, v => patchRoom(r, v ? { linkModel: true } : { linkModel: false, modeled: { w: f.w, d: f.d } })),
+    r.linkModel ? null : row(fNum('Modeled X extent', r.modeled.w, v => patchRoom(r, { modeled: { w: v, d: r.modeled.d } }), { min: 0.1, max: 200 }), fNum('Modeled Z extent', r.modeled.d, v => patchRoom(r, { modeled: { w: r.modeled.w, d: v } }), { min: 0.1, max: 200 })),
+    row(fColor('Floor color', r.floorColor, v => edit(() => { r.floorColor = v; })), fSelect('Floor material', r.floorMaterial, Object.entries(FLOOR_MATS).map(([k, v]) => [k, v.label]), v => edit(() => { r.floorMaterial = v; }))),
+    row(fCheck('Show label', r.showLabel, v => edit(() => { r.showLabel = v; })), fCheck('Locked', r.locked, v => edit(() => { r.locked = v; }))),
+    h('label', { class: 'fld' }, h('span', {}, 'Room notes / assumptions'), (() => { const ta = h('textarea', { rows: 3, maxlength: 500 }, r.notes); ta.addEventListener('change', () => { edit(() => { r.notes = ta.value; }); }); return ta; })()),
+    h('div', { class: 'btns' },
+      btn('🎯 Focus in 3D', () => S.v3 ? S.v3.focusRoom(r.id) : toast('3D view unavailable')), btn('⟳ Rotate 90°', () => rotateRoom(r)), btn('⧉ Duplicate', () => duplicateRoom(r)),
+      btn('↺ Reset room', () => resetRoom(r)), btn('🗑 Delete', () => deleteRoom(r), 'dng'))];
+}
+function inspWall(w) {
+  const P = S.plan, i = wallInfo(P, w);
+  return [
+    h('div', { class: 'kv', style: { marginBottom: '8px' } }, h('b', {}, 'Length'), h('span', {}, f2(i.len) + ' m'), h('b', {}, 'Effective thickness / height'), h('span', {}, f2(i.t) + ' / ' + f2(i.H) + ' m'), h('b', {}, 'Origin'), h('span', {}, w.manual ? 'manual wall' : 'generated from room edges'), h('b', {}, 'Between'), h('span', {}, (w.owners || []).map(id => { const r = roomById(P, id); return r ? r.nameEn : id; }).join(' | ') || 'user-defined')),
+    row(fNum('Start X', w.x1, v => patchWall(w, { x1: r2(v) })), fNum('Start Z', w.z1, v => patchWall(w, { z1: r2(v) }))),
+    row(fNum('End X', w.x2, v => patchWall(w, { x2: r2(v) })), fNum('End Z', w.z2, v => patchWall(w, { z2: r2(v) }))),
+    row(fNum('Thickness', i.t, v => edit(() => { w.thickness = v; }), { min: 0.02, max: 1 }), fNum('Height', i.H, v => edit(() => { w.height = v; }), { min: 0.3, max: 6 })),
+    h('div', { class: 'btns' }, btn('Use default thickness', () => edit(() => { w.thickness = null; })), btn('Use global height', () => edit(() => { w.height = null; }))),
+    row(fColor('Color', w.color || S.display.wallColor, v => edit(() => { w.color = v; })), fSelect('Material', w.material, Object.entries(WALL_MATS).map(([k, v]) => [k, v.label]), v => edit(() => { w.material = v; }))),
+    h('div', { class: 'btns' }, btn('Use default color', () => edit(() => { w.color = null; }))),
+    row(fCheck('Exterior wall', w.exterior, v => edit(() => { w.exterior = v; w.exteriorSet = true; })), fCheck('Locked', w.locked, v => edit(() => { w.locked = v; }))),
+    fText('Note', w.note || '', v => edit(() => { w.note = v; })),
+    h('div', { class: 'btns' }, btn('⌂ Add door to this wall', () => { const s = P.settings; if (i.len < s.doorWidth + 0.1) { toast('Wall too short for a door', true); return; } pushUndo(); const d = newDoor(P, w.id, r2(i.len / 2), { note: 'Added by user.' }); changed(); select('door', d.id); }), btn('🗑 Delete wall', () => deleteWall(w), 'dng'))];
+}
+function inspDoor(d) {
+  const P = S.plan, w = wallById(P, d.hostWallId), i = w ? wallInfo(P, w) : null, [a, b] = sidesOf(P, d);
+  return [
+    h('div', { class: 'kv', style: { marginBottom: '8px' } }, h('b', {}, 'Host wall'), h('span', {}, w ? w.id + ' (' + f2(i.len) + ' m)' : '⛔ none'), h('b', {}, 'Side A / B (computed)'), h('span', {}, a + ' | ' + b), h('b', {}, 'Position'), h('span', {}, f2(d.ax) + ', ' + f2(d.az) + ' m'), ...(d.note ? [h('b', {}, 'Note'), h('span', { style: { fontStyle: 'italic' } }, d.note)] : [])),
+    fSelect('Host wall', d.hostWallId || '', [['', '— none —'], ...P.walls.map((x, k) => [x.id, 'Wall ' + (k + 1) + ' · ' + x.id + ' · ' + f2(wallInfo(P, x).len) + ' m'])], v => edit(() => { d.hostWallId = v || null; const ww = wallById(P, v); if (ww) { d.offset = r3(clamp(d.offset, 0, wallInfo(P, ww).len)); syncAnchors(P); } })),
+    row(fNum('Offset along wall (centre)', d.offset, v => edit(() => { d.offset = r3(v); syncAnchors(P); }), { min: -100, max: 1000 }), fNum('Width', d.width, v => edit(() => { d.width = v; }), { min: 0.3, max: 6 })),
+    row(fNum('Height', d.height, v => edit(() => { d.height = v; }), { min: 0.5, max: 6 }), fSelect('Type', d.type, [['single', 'Single'], ['double', 'Double'], ['sliding', 'Sliding']], v => edit(() => { d.type = v; }))),
+    row(fSelect('Swing / slide side', d.swing, [[1, 'Toward side A'], [-1, 'Toward side B']], v => edit(() => { d.swing = +v; })), fSelect('Hinge', d.hinge, [['start', 'At wall start'], ['end', 'At wall end']], v => edit(() => { d.hinge = v; }))),
+    row(fSelect('Leaf material', d.material, Object.entries(DOOR_MATS).map(([k, v]) => [k, v.label]), v => edit(() => { d.material = v; })), fColor('Leaf color', d.color, v => edit(() => { d.color = v; }))),
+    fColor('Frame color', d.frameColor, v => edit(() => { d.frameColor = v; })),
+    h('datalist', { id: 'rn' }, ...P.rooms.map(r => h('option', { value: r.nameEn })), h('option', { value: 'Exterior' })),
+    row(fText('Side A leads to', d.sideA, v => edit(() => { d.sideA = v; }), { list: 'rn' }), fText('Side B leads to', d.sideB, v => edit(() => { d.sideB = v; }), { list: 'rn' })),
+    row(fCheck('Uncertain placement', d.uncertain, v => edit(() => { d.uncertain = v; })), fCheck('Locked', d.locked, v => edit(() => { d.locked = v; }))),
+    h('p', { class: 'note' }, 'Door type, swing and height are assumptions; the drawing’s ovals only mark positions. Drag the door along its wall in 2D.'),
+    h('div', { class: 'btns' }, btn('⧉ Duplicate', () => duplicateDoor(d)), btn('🗑 Delete', () => deleteDoor(d), 'dng'))];
+}
+function inspEquip(e) {
+  const P = S.plan;
+  return [
+    fText('Name', e.name, v => edit(() => { e.name = v || LIB[e.type].label; })),
+    fSelect('Type', e.type, Object.entries(LIB).map(([k, v]) => [k, v.label]), v => edit(() => { e.type = v; })),
+    row(fNum('Centre X', e.x, v => edit(() => { e.x = r2(v); })), fNum('Centre Z', e.z, v => edit(() => { e.z = r2(v); }))),
+    row(fNum('Width (X)', e.w, v => edit(() => { e.w = v; }), { min: 0.05, max: 30 }), fNum('Depth (Z)', e.d, v => edit(() => { e.d = v; }), { min: 0.05, max: 30 })),
+    row(fNum('Height', e.h, v => edit(() => { e.h = v; }), { min: 0.05, max: 6 }), fNum('Elevation', e.elev || 0, v => edit(() => { e.elev = v; }), { min: 0, max: 6 })),
+    row(fNum('Rotation', e.rot || 0, v => edit(() => { e.rot = ((v % 360) + 360) % 360; }), { unit: '°', step: 1, min: -3600, max: 3600 }), fColor('Color', e.color, v => edit(() => { e.color = v; }))),
+    row(fCheck('Hidden', e.hidden, v => edit(() => { e.hidden = v; })), fCheck('Locked', e.locked, v => edit(() => { e.locked = v; }))),
+    h('p', { class: 'note' }, 'Front faces local +Z. Illustrative object; keep doorways and their 1 m approaches clear.'),
+    h('div', { class: 'btns' }, btn('⟳ Rotate 90°', () => edit(() => { e.rot = ((e.rot || 0) + 90) % 360; })), btn('⧉ Duplicate', () => duplicateEquipment(e)), btn('🗑 Delete', () => deleteEquipment(e), 'dng'))];
+}
+function renderPlanSettings(sec) {
+  const P = S.plan, s = P.settings, c = issueCounts(S.issues);
+  sec.replaceChildren(
+    h('div', { class: 'card' }, h('h3', {}, 'Plan settings (nothing selected)'),
+      h('p', { class: 'note' }, 'Select a room, wall, door or item on the plan (or in the lists) to edit it. These defaults are editable assumptions, not universal standards.'),
+      row(fNum('Default wall thickness', s.wallThickness, v => edit(p => { p.settings.wallThickness = v; }), { min: 0.02, max: 1 }), fNum('Global wall height', s.wallHeight, v => edit(p => { p.settings.wallHeight = v; }), { min: 0.5, max: 5, step: 0.05 })),
+      row(fNum('Default door width', s.doorWidth, v => edit(p => { p.settings.doorWidth = v; }), { min: 0.3, max: 4 }), fNum('Default door height', s.doorHeight, v => edit(p => { p.settings.doorHeight = v; }), { min: 0.5, max: 5 })),
+      h('div', { class: 'btns' },
+        btn('Apply thickness & height to all walls', () => edit(p => { p.walls.forEach(w => { w.thickness = null; w.height = null; }); toast('Wall overrides cleared: all walls use the defaults'); })),
+        btn('Apply width & height to all doors', () => edit(p => { p.doors.forEach(d => { d.width = p.settings.doorWidth; d.height = p.settings.doorHeight; }); toast('All doors updated'); }))),
+      fSelect('Dimension convention (unconfirmed)', s.convention, [['centerline', 'Wall centerlines'], ['inside', 'Clear inside'], ['outside', 'Outside faces']], v => edit(p => { p.settings.convention = v; })),
+      row(fNum('Grid size', s.gridSize, v => edit(p => { p.settings.gridSize = v; }), { min: 0.05, max: 5, step: 0.05 })),
+      row(fCheck('Snap to grid', s.snapGrid, v => edit(p => { p.settings.snapGrid = v; })), fCheck('Snap to corners / endpoints', s.snapCorners, v => edit(p => { p.settings.snapCorners = v; })))),
+    h('div', { class: 'card' }, h('h3', {}, 'Summary'),
+      h('div', { class: 'kv' }, h('b', {}, 'Rooms / walls / doors / items'), h('span', {}, [P.rooms.length, P.walls.length, P.doors.length, P.equipment.length].join(' / ')), h('b', {}, 'Errors / warnings'), h('span', {}, c.e + ' / ' + c.w)),
+      h('div', { class: 'btns' }, btn('Open checks', () => showRightTab('checks')))));
+}
+
+/* ---- display panel ---- */
+function setDisplay(k, v) { S.display[k] = v; S.dirty2d = S.dirty3d = S.dirtyUI = true; scheduleSave(); if (S.v3) S.v3.apply(); }
+function renderDisplay(sec) {
+  const D = S.display, P = S.plan, chk = (l, k) => fCheck(l, D[k], v => setDisplay(k, v));
+  const wh = h('input', { type: 'range', min: 0.5, max: 5, step: 0.05, value: P.settings.wallHeight });
+  const whv = h('input', { type: 'number', min: 0.5, max: 5, step: 0.05, value: P.settings.wallHeight, style: { width: '70px' } });
+  wh.addEventListener('input', () => { const v = parseFloat(wh.value); whv.value = v; liveEdit(p => { p.settings.wallHeight = v; }); });
+  wh.addEventListener('change', liveEnd);
+  whv.addEventListener('change', () => { const v = parseFloat(whv.value); if (!isFinite(v) || v < 0.5 || v > 5) { toast('Wall height must be 0.5–5.0 m', true); whv.value = P.settings.wallHeight; return; } liveEdit(p => { p.settings.wallHeight = v; }); liveEnd(); wh.value = v; });
+  const lt = h('input', { type: 'range', min: 0.2, max: 2, step: 0.05, value: D.light }); lt.addEventListener('input', () => setDisplay('light', parseFloat(lt.value)));
+  const seg = (cur, opts, fn) => h('div', { class: 'seg' }, opts.map(([v, l]) => h('button', { class: cur === v ? 'on' : '', onclick: () => { fn(v); S.dirtyUI = true; } }, l)));
+  sec.replaceChildren(
+    h('div', { class: 'card' }, h('h3', {}, '3D mode'), seg(D.mode3d, [['solid', 'Solid'], ['wire', 'Wireframe'], ['xray', 'X-ray']], v => setDisplay('mode3d', v)),
+      h('h4', {}, 'Global wall height (0.5 – 5.0 m)'), row(wh, whv, h('span', {}, 'm')), h('p', { class: 'note' }, 'Default 3.2 m is a provisional assumption. Door openings are clipped to the wall height and flagged if they no longer fit.'),
+      h('label', { class: 'fld' }, h('span', {}, 'Lighting intensity'), lt)),
+    h('div', { class: 'card' }, h('h3', {}, 'Labels'), seg(D.labelLang, [['both', 'Arabic + English'], ['en', 'English'], ['ar', 'Arabic']], v => setDisplay('labelLang', v)),
+      row(chk('Room labels', 'showRoomLabels'), chk('Dimensions', 'showDims')), row(chk('Areas', 'showArea'), chk('Door labels', 'showDoorLabels'))),
+    h('div', { class: 'card' }, h('h3', {}, 'Visibility'),
+      row(chk('Floors (3D)', 'showFloors'), chk('Ceilings', 'showCeilings')), row(chk('Furniture & equipment', 'showEquipment'), chk('Open door leaves', 'openDoors')),
+      row(chk('Grid (3D)', 'showGrid3d'), chk('Grid (2D)', 'showGrid2d')), row(chk('Shadows', 'shadows'), chk('Supplementary room lights', 'suppLights'))),
+    h('div', { class: 'card' }, h('h3', {}, 'Colors'),
+      row(fColor('Walls', D.wallColor, v => setDisplay('wallColor', v), true), fColor('Ceiling', D.ceilingColor, v => setDisplay('ceilingColor', v), true)),
+      row(fColor('Ground', D.groundColor, v => setDisplay('groundColor', v), true), fColor('Global floor', D.floorColor, v => setDisplay('floorColor', v), true)),
+      chk('Use the global floor color instead of per-room colors', 'floorOverride')),
+    h('div', { class: 'btns' }, btn('⛶ Fullscreen', toggleFullscreen), btn('Reset display options', () => { S.display = { ...DEFAULT_DISPLAY }; S.dirty2d = S.dirty3d = S.dirtyUI = true; scheduleSave(); if (S.v3) S.v3.apply(); }))
+  );
+}
+function toggleFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (!document.fullscreenEnabled || !el.requestFullscreen) { toast('Fullscreen is not available here (blocked by the browser or an embedding frame).', true); return; }
+    if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(e => toast('Fullscreen was refused: ' + e.message, true));
+  } catch (e) { toast('Fullscreen is not available: ' + e.message, true); }
+}
+
+/* ---- checks panel ---- */
+function renderChecks(sec) {
+  const P = S.plan, c = issueCounts(S.issues), isu = S.issues;
+  const door = d => {
+    const w = wallById(P, d.hostWallId), prob = doorProblem(d);
+    const [a, b] = sidesOf(P, d);
+    return h('tr', { class: 'clk', onclick: () => goToTarget({ type: 'door', id: d.id }) }, h('td', {}, d.refNo || '·'), h('td', { title: d.note }, (a || '?') + ' ↔ ' + (b || '?')), h('td', {}, w ? w.id.replace('wall-', 'W') : '—'), h('td', { style: { color: prob ? '#c92a2a' : d.uncertain ? '#e67700' : '#2b8a3e', fontWeight: 700 } }, prob ? 'issue' : d.uncertain ? 'approx.' : 'ok'));
+  };
+  const refDoors = P.doors.filter(d => d.refNo).sort((x, y) => x.refNo - y.refNo);
+  sec.replaceChildren(
+    h('div', { class: 'banner' }, h('b', {}, 'Schematic plan. '), 'The drawing is schematic, not surveyed. These visual checks are planning aids only — not architectural, engineering, fire-safety or regulatory approval.'),
+    h('div', { class: 'card' }, h('h3', {}, 'Plan assumptions and geometry conflicts'),
+      h('div', { class: 'kv', style: { marginBottom: '6px' } }, h('b', {}, 'Errors'), h('span', {}, c.e), h('b', {}, 'Warnings'), h('span', {}, c.w), h('b', {}, 'Notes'), h('span', {}, c.i)),
+      isu.filter(i => i.sev === 'error').map(issueNode), isu.filter(i => i.sev === 'warn').map(issueNode),
+      c.e + c.w === 0 ? h('p', { class: 'note' }, '✔ No errors or warnings. Notes below still apply.') : null),
+    h('div', { class: 'card' }, h('h3', {}, 'Assumptions'), staticAssumptions(P).map(([t, x]) => h('div', { class: 'iss info', style: { cursor: 'default' } }, h('span', {}, 'ℹ️'), h('div', {}, h('b', {}, t), h('div', {}, x))))),
+    h('div', { class: 'card' }, h('h3', {}, 'Notes on placement (' + c.i + ')'), isu.filter(i => i.sev === 'info').map(issueNode)),
+    h('div', { class: 'card' }, h('h3', {}, 'Door marker accounting'),
+      h('p', { class: 'note' }, refDoors.length + ' of 16 markers are present as doors. The marker that was inside the butchery was removed and is intentionally not included. Click a row to locate it.'),
+      h('table', { class: 't' }, h('thead', {}, h('tr', {}, ['#', 'Connects', 'Host', 'Status'].map(x => h('th', {}, x)))), h('tbody', {}, refDoors.map(door)))));
+}
+
+/* ---- help panel ---- */
+function renderHelp(sec) {
+  const kb = (k, d) => h('tr', {}, h('td', {}, h('kbd', {}, k)), h('td', { style: { textAlign: 'left' } }, d));
+  sec.replaceChildren(
+    h('div', { class: 'card' }, h('h3', {}, 'How to use'),
+      h('ul', { style: { margin: '0 0 0 16px', padding: 0 } },
+        h('li', {}, 'Click objects in 2D or 3D to select them; the Inspector shows editable fields and the room dashboard.'),
+        h('li', {}, 'Drag to move; drag the square handles to resize rooms/walls/equipment; drag a door along its wall.'),
+        h('li', {}, 'Rooms, walls, doors and equipment share one plan, so every edit updates both views.'),
+        h('li', {}, 'Shared walls are generated from room edges. Editing a room rebuilds them; if that would create new warnings you are asked to apply or cancel. Neighbours are never moved silently.'),
+        h('li', {}, 'Warnings in the Checks tab are clickable and highlight the object.'))),
+    h('div', { class: 'card' }, h('h3', {}, 'Keyboard shortcuts'),
+      h('table', { class: 't' }, h('tbody', {},
+        kb('V / M / S / T', 'Select / Move / Resize / Rotate tool'), kb('A / W / D / Q', 'Add room / wall / door / equipment'),
+        kb('Del', 'Delete selection'), kb('Ctrl+D', 'Duplicate selection'), kb('R (Shift+R)', 'Rotate selection 90° (−90°)'),
+        kb('Ctrl+Z / Ctrl+Y', 'Undo / redo'), kb('Arrows (Shift)', 'Nudge by grid (0.1 m)'), kb('G', 'Toggle snap to grid'),
+        kb('Space + drag', 'Pan the 2D view (also middle/right mouse)'), kb('Wheel / pinch', 'Zoom 2D view'), kb('1 / 2 / 3', '2D / split / 3D'), kb('F', 'Fit 2D plan'), kb('Esc', 'Cancel / deselect')))),
+    h('div', { class: 'card' }, h('h3', {}, 'Saving'),
+      h('p', {}, 'Every change is saved automatically to this browser’s local storage and restored on reload. Local storage is specific to this browser and device. Use ', h('b', {}, 'Export JSON'), ' for a portable backup and ', h('b', {}, 'Import'), ' to load it elsewhere; a failed import never overwrites the current plan.')),
+    h('div', { class: 'card' }, h('h3', {}, 'Limitations'),
+      h('ul', { style: { margin: '0 0 0 16px', padding: 0 } },
+        h('li', {}, 'Rooms are axis-aligned rectangles (0° / 90°); walls may be at any angle.'),
+        h('li', {}, 'Geometry has no boolean subtraction: openings are built from wall pieces and lintels.'),
+        h('li', {}, 'The 3D PNG contains the rendered scene only (HTML labels are not included).'),
+        h('li', {}, 'Wall edits made by hand are kept when walls are rebuilt, and may then overlap regenerated walls; overlaps are reported.'),
+        h('li', {}, 'Three.js loads from a CDN (jsDelivr, pinned to r160): an internet connection is needed the first time. If it fails the 2D editor still works.'),
+        h('li', {}, 'Elevations are views of the illustrative model, not verified elevations. Exact coordinates, door widths, ceilings and construction details cannot be derived from the schematic.'))));
+}
+
+/* ---- files ---- */
+function download(name, href, revoke) {
+  const a = h('a', { href, download: name }); document.body.append(a); a.click();
+  setTimeout(() => { a.remove(); if (revoke) URL.revokeObjectURL(href); }, 800);
+}
+function exportJSON() {
+  try {
+    const blob = new Blob([JSON.stringify(exportObject(), null, 2)], { type: 'application/json' });
+    download('restaurant-plan.json', URL.createObjectURL(blob), true); toast('Plan exported as restaurant-plan.json');
+  } catch (e) { toast('Export failed: ' + e.message, true); }
+}
+async function importFile(file) {
+  if (!file) return;
+  try {
+    if (file.size > 8e6) throw new Error('The file is larger than 8 MB.');
+    const res = parseImport(await file.text());
+    pushUndo(); S.plan = res.plan; S.display = res.display; S.sel = null;
+    if (res.cam2 && isFinite(res.cam2.cx) && isFinite(res.cam2.cz) && isFinite(res.cam2.scale)) S.cam2 = { cx: res.cam2.cx, cz: res.cam2.cz, scale: clamp(res.cam2.scale, 3, 160) };
+    changed(); S.dirtyInsp = true; if (S.v3) { S.v3.apply(); if (!S.v3.set(res.cam3)) S.v3.fitCamera(false); }
+    toast('Plan imported: ' + res.plan.rooms.length + ' rooms, ' + res.plan.doors.length + ' doors, ' + res.plan.equipment.length + ' items');
+  } catch (e) {
+    await modal('Import failed — current plan kept', [h('p', {}, 'The file could not be imported and your current plan was not changed.'), h('pre', { style: { whiteSpace: 'pre-wrap', background: '#fff0f0', padding: '6px', borderRadius: '6px', fontSize: '12px' } }, e.message)], [{ label: 'OK', value: 'ok', cls: 'pri' }]);
+  }
+}
+function exportPng2D() {
+  try {
+    const W = 2000, HH = 1300, cv = document.createElement('canvas'); cv.width = W; cv.height = HH;
+    const b = planBounds(), cam = { cx: b.cx, cz: b.cz, scale: Math.min((W - 120) / b.w, (HH - 120) / b.d) };
+    draw2D(cv.getContext('2d'), W, HH, cam, true);
+    download('restaurant-plan-2d.png', cv.toDataURL('image/png')); toast('2D view exported as PNG');
+  } catch (e) { toast('2D PNG export failed: ' + e.message, true); }
+}
+function exportPng3D() {
+  if (!S.v3) { toast('3D view is unavailable, so there is nothing to export', true); return; }
+  try { download('restaurant-plan-3d.png', S.v3.png()); toast('3D view exported as PNG'); } catch (e) { toast('3D PNG export failed: ' + e.message, true); }
+}
+
+/* ---- refresh cycle ---- */
+function a11yPass() {
+  document.querySelectorAll('button').forEach(b => { if (!b.getAttribute('aria-label')) { const t = b.title || (b.textContent || '').trim(); if (t && !(b.textContent || '').trim()) b.setAttribute('aria-label', t); } });
+  document.querySelectorAll('[data-tab]').forEach(b => { if (b.tagName === 'BUTTON') { b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', b.classList.contains('on') ? 'true' : 'false'); } });
+  document.querySelectorAll('input,select,textarea').forEach(el => { if (el.getAttribute('aria-label') || el.type === 'file') return; const f = el.closest('.fld'); const l = f && (f.querySelector('label') || f.querySelector('span')); const t = l ? l.textContent.trim() : (el.title || el.placeholder || ''); if (t) el.setAttribute('aria-label', t); });
+  document.querySelectorAll('[dir=rtl]:not([lang])').forEach(el => el.setAttribute('lang', 'ar'));
+}
+function refreshUI() {
+  S.dirtyUI = false;
+  S.issues = validate(S.plan);
+  const c = issueCounts(S.issues), b = $('#stBadge');
+  b.textContent = c.e ? c.e + ' error' + (c.e > 1 ? 's' : '') + ' · ' + c.w + ' warning' + (c.w === 1 ? '' : 's') : c.w ? c.w + ' warning' + (c.w > 1 ? 's' : '') : 'No warnings';
+  b.className = 'badge' + (c.e ? ' e' : c.w ? ' w' : '');
+  $('#btnUndo').disabled = !S.undo.length; $('#btnRedo').disabled = !S.redo.length;
+  $('#tSnapGrid').classList.toggle('on', S.plan.settings.snapGrid); $('#tSnapCorner').classList.toggle('on', S.plan.settings.snapCorners);
+  $$('#modeBtns .chip').forEach(x => x.classList.toggle('on', x.dataset.mode === S.display.mode3d));
+  const o = selObj(), t = S.sel && S.sel.type;
+  $('#stSel').textContent = o ? ({ room: 'Room: ' + o.nameEn, wall: 'Wall ' + o.id, door: 'Door ' + (o.refNo || o.id), equip: 'Item: ' + (o.name || o.type) })[t] : 'No selection';
+  const lt = activeTab('#leftBody'), rt = activeTab('#rightBody');
+  const L = { rooms: renderRooms, objects: renderObjects, schedule: renderSchedule, library: renderLibrary }[lt]; if (L) L($('#leftBody > section.on'));
+  if (rt === 'disp') { if (!$('#rightBody > section.on').contains(document.activeElement) || S.forceInsp) { renderDisplay($('#rightBody > section.on')); } }
+  else if (rt === 'checks') renderChecks($('#rightBody > section.on'));
+  else if (rt === 'insp') {
+    const sec = $('#rightBody > section.on');
+    if (S.dirtyInsp && (!sec.contains(document.activeElement) || S.forceInsp)) { S.dirtyInsp = false; S.forceInsp = false; renderInspector(sec); }
+  }
+  if (rt === 'disp' && S.forceInsp) S.forceInsp = false;
+  a11yPass();
+  S.dirty2d = true;
+}
+/* ---------------------------------------------------------------------
+   9. STARTUP, KEYBOARD, MAIN LOOP
+   --------------------------------------------------------------------- */
+function showFatal(msg) {
+  const f = $('#fatal'); f.style.display = 'block';
+  f.textContent = 'Application error: ' + msg + '\nIf this persists, reload the page; clearing this site’s local storage resets the saved plan.';
+}
+window.addEventListener('error', e => { if (e.message && !/ResizeObserver/.test(e.message)) showFatal(e.message); });
+window.addEventListener('unhandledrejection', e => showFatal(String((e.reason && e.reason.message) || e.reason)));
+
+function rotateSelection(back) {
+  const o = selObj(); if (!o) { toast('Select a room or equipment to rotate'); return; }
+  if (S.sel.type === 'room') rotateRoom(o);
+  else if (S.sel.type === 'equip') { if (!lockedCheck(o, 'Equipment')) edit(() => { o.rot = ((o.rot || 0) + (back ? -90 : 90) + 360) % 360; }); }
+  else toast('Rotate works on rooms and equipment');
+}
+function onKeyDown(e) {
+  if (e.key === 'Shift') V2.shift = true;
+  const modalOpen = $('#modalback').classList.contains('show');
+  if (e.key === 'Escape') {
+    if (modalOpen) { closeModal('cancel'); return; }
+    if (V2.drag) abortDrag(); V2.wallStart = null; select(null); S.dirty2d = true; return;
+  }
+  if (modalOpen) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable) return;
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && k === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && k === 'd') { e.preventDefault(); duplicateSelection(); return; }
+  if (mod || e.altKey) return;
+  if (k === ' ') { V2.space = true; e.preventDefault(); return; }
+  const tools = { v: 'select', m: 'move', s: 'resize', t: 'rotate', a: 'addRoom', w: 'addWall', d: 'addDoor', q: 'addEquip' };
+  if (tools[k]) { setTool(tools[k]); return; }
+  if (k === 'delete' || k === 'backspace') { e.preventDefault(); deleteSelection(); return; }
+  if (k === 'r') { rotateSelection(e.shiftKey); return; }
+  if (k === 'g') { edit(p => { p.settings.snapGrid = !p.settings.snapGrid; }); toast('Grid snap ' + (S.plan.settings.snapGrid ? 'on' : 'off')); return; }
+  if (k === 'f') { fit2D(); return; }
+  if (k === '1') { setViewMode('2d'); return; } if (k === '2') { setViewMode('split'); return; } if (k === '3') { setViewMode('3d'); return; }
+  const step = e.shiftKey ? 0.1 : S.plan.settings.gridSize, arrows = { arrowleft: [-step, 0], arrowright: [step, 0], arrowup: [0, -step], arrowdown: [0, step] };
+  if (arrows[k]) { e.preventDefault(); nudgeSelection(...arrows[k]); }
+}
+
+function wire() {
+  $('#btnUndo').onclick = undo; $('#btnRedo').onclick = redo;
+  $$('#viewSeg .tb').forEach(b => b.onclick = () => setViewMode(b.dataset.view));
+  $('#btnExport').onclick = exportJSON;
+  $('#btnImport').onclick = () => $('#fileImport').click();
+  $('#fileImport').onchange = e => { importFile(e.target.files[0]); e.target.value = ''; };
+  $('#btnPng2d').onclick = exportPng2D; $('#btnPng3d').onclick = exportPng3D;
+  $('#btnFull').onclick = toggleFullscreen; $('#btnResetAll').onclick = resetAll;
+  $('#btnLeft').onclick = () => { $('#right').classList.remove('open'); $('#left').classList.toggle('open'); };
+  $('#btnRight').onclick = () => { $('#left').classList.remove('open'); $('#right').classList.toggle('open'); };
+  $('#stBadge').onclick = () => showRightTab('checks');
+  $$('#camBtns .chip').forEach(b => b.onclick = () => { if (!S.v3) { toast('3D view unavailable', true); return; } S.v3.setPreset(b.dataset.cam); });
+  $$('#modeBtns .chip').forEach(b => b.onclick = () => setDisplay('mode3d', b.dataset.mode));
+  $('#center').addEventListener('pointerdown', () => { $('#left').classList.remove('open'); $('#right').classList.remove('open'); });
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', e => { if (e.key === ' ') V2.space = false; if (e.key === 'Shift') V2.shift = false; });
+  window.addEventListener('blur', () => { V2.space = false; V2.shift = false; });
+  $('#modalback').addEventListener('pointerdown', e => { if (e.target.id === 'modalback') closeModal('cancel'); });
+  window.addEventListener('beforeunload', () => { try { localStorage.setItem(LS_KEY, JSON.stringify(exportObject())); } catch (e) { /* ignore */ } });
+  new ResizeObserver(updateStack).observe($('#views'));
+  initTabs('#leftTabs', '#leftBody'); initTabs('#rightTabs', '#rightBody');
+}
+
+let lastUI = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  try {
+    if (S.dirtyUI && now - lastUI > 100) { lastUI = now; refreshUI(); }
+    if (S.dirty2d && V2.w && S.viewMode !== '3d') { S.dirty2d = false; V2.ctx.setTransform(V2.dpr, 0, 0, V2.dpr, 0, 0); draw2D(V2.ctx, V2.w, V2.h, S.cam2, false); }
+    if (S.v3) S.v3.frame(now);
+  } catch (e) { console.error(e); if (!loop.warned) { loop.warned = true; toast('Rendering error: ' + e.message, true); } }
+}
+
+(async function main() {
+  try {
+    const saved = loadSaved();
+    if (saved) {
+      S.plan = saved.plan; S.display = saved.display;
+      if (saved.cam2 && isFinite(saved.cam2.cx) && isFinite(saved.cam2.cz) && isFinite(saved.cam2.scale)) { S.cam2 = { cx: saved.cam2.cx, cz: saved.cam2.cz, scale: clamp(saved.cam2.scale, 3, 160) }; V2.userView = true; }
+      else V2.needFit = true;
+    } else { S.plan = makeDefaultPlan(); V2.needFit = true; }
+    buildToolbar(); wire(); init2D(); setTool('select');
+    renderHelp($('#rightBody > section[data-tab=help]'));
+    setViewMode(window.innerWidth >= 1100 ? 'split' : '2d');
+    updateStack(); refreshUI(); resize2D();
+    if (!saved) toast('Loaded the initial reference plan (schematic). Edits save automatically in this browser.');
+    else toast('Restored your saved plan from this browser');
+    requestAnimationFrame(loop);
+    S.v3 = await init3D();
+    if (S.v3) { if (!(saved && S.v3.set(saved.cam3))) S.v3.fitCamera(false); S.dirty3d = true; S.v3.resize(); }
+  } catch (e) { console.error(e); showFatal(e.message); }
+})();
+
+/* Debug handle for automated checks: only exposed when the page is opened with ?debug. */
+if (/[?&]debug(=|&|$)/.test(location.search)) window.__RPE = { S, V2, validate, makeDefaultPlan, rectOf, fp, wallOpenings, parseImport, exportObject, select, patchRoom, setStated, resetRoom, undo, redo, addEquipment, addDoorAt, duplicateRoom, rotateRoom,
+  deleteSelection, setDisplay, setViewMode, setTool, toS, toW, hitTest, roomById, doorById, wallById, equipById, eqPoly, resetAll, rebuildWalls, deleteRoom, patchWall, issueCounts,
+  addRoomRect, addManualWall, addDoorAt: addDoorAt, moveDoorTo, deleteDoor, duplicateEquipment, deleteEquipment, deleteWall, rebuildAllWalls, duplicateSelection, rotateSelection, nudgeSelection, fit2D, undoStack: () => S.undo.length };
+</script>
+</body>
+</html>
