@@ -361,10 +361,10 @@ const DEFAULT_DISPLAY = {
 const REF_ROOMS = [
   { key: 'receiving', en: 'Receiving, dispatch and chilled storage area', ar: 'منطقة استلام و تسلم ومنطقة التبريد', L: 11, W: 10, rot: 90, x: 13, z: -11, cat: 'receiving', anchor: { fx: 0.25, fz: 0.5 },
     note: 'Merged room (receiving and dispatch + chilled storage): 11 m long × 10 m wide = 110 m². Position approximate: above the corridor, shifted 1 m left of the corridor start (x 13–23) so the upper row fits within the lower footprint width of 38 m.' },
-  { key: 'dryStore', en: 'Dry store', ar: 'مخزن جاف', L: 10, W: 7, rot: 0, x: 18, z: -18, cat: 'storage',
-    note: 'Position approximate: modeled at its stated 10 × 7 m above the merged receiving/chilled room and the store (x 18–28). The drawing shows it narrower.' },
-  { key: 'store', en: 'Store', ar: 'مخزن', L: 11, W: 2, rot: 90, x: 23, z: -11, cat: 'storage',
-    note: 'Position approximate: narrow store right of the merged receiving/chilled room, bottom edge on the corridor line.' },
+  { key: 'dryStore', en: 'Dry store', ar: 'مخزن جاف', L: 11.2, W: 5.25, rot: 90, x: 17.75, z: -22.2, cat: 'storage',
+    note: 'Dimensions per the latest user correction: 5.25 m wide × 11.20 m long. Position approximate: rotated so its 11.20 m length runs north from the merged room\'s top wall (z −11), with its right edge aligned to the merged room\'s right edge (x 23), where door 17 is hosted.' },
+  { key: 'store', en: 'Store', ar: 'مخزن', L: 16, W: 2, rot: 90, x: 23, z: -16, cat: 'storage',
+    note: 'Dimensions per the latest user correction: 2.00 m wide × 16.00 m long. Position per the user\'s edited layout: strip between the merged room/dry store (left) and the upper dining hall (right), from the service corridor line (z 0) north to z −16.' },
   { key: 'upperDining', en: 'Upper dining hall', ar: 'صالة الطعام', L: 11, W: 8, rot: 90, x: 25, z: -11, cat: 'dining',
     note: 'Position approximate: stated 8 × 11 m used; the drawing shows a narrower schematic proportion.' },
   { key: 'electrical', en: 'Electrical room', ar: 'غرفة الكهرباء', L: 4, W: 2, rot: 90, x: 33, z: -4, cat: 'electrical',
@@ -687,14 +687,15 @@ function initialEquipment(plan) {
   // Receiving and dispatch: staging surfaces and shelving
   E('prepTable', 17.45, -8.3, 90, { name: 'Staging table' }); E('prepTable', 17.45, -5.8, 90, { name: 'Staging table' });
   E('shelf', 17.6, -2.6, 90); E('shelf', 13.5, -9.1, 90); E('pallet', 15.2, -3.0, 0);
-  // Dry store racks
-  for (let i = 0; i < 7; i++) { E('shelf', r2(19.3 + 1.3 * i), -17.55, 0); E('shelf', r2(19.3 + 1.3 * i), -15.0, 0); }
-  for (let i = 0; i < 4; i++) E('shelf', r2(23.2 + 1.3 * i), -12.2, 0);
+  // Dry store racks: dry store is rotated (x 17.75–23.00, z −22.20 to −11.00). Racks run along Z (rot 90) in two wall rows
+  // with a central 4.2 m aisle. The left row stops at z −14.4 to keep door 2 (left wall, z −12.5) and door 17's approach clear.
+  for (const z of [-21.5, -20.2, -18.9, -17.6, -16.3, -15.0]) E('shelf', 18.05, z, 90);
+  for (const z of [-21.5, -20.2, -18.9, -17.6, -16.3, -15.0, -13.7, -12.4]) E('shelf', 22.7, z, 90);
   // Chilled storage
   for (const z of [-6.8, -5.5, -4.2]) { E('coldShelf', 22.55, z, 90); E('coldShelf', 18.45, z, 90); }
   E('fridge', 20.5, -7.5, 0);
   // Narrow store racks
-  for (const z of [-9.8, -8.5, -7.2, -5.9, -4.6, -3.3]) E('shelf', 23.45, z, 90);
+  for (const z of [-15.0, -13.7, -12.4, -11.1, -9.8, -8.5, -7.2, -5.9, -4.6, -3.3]) E('shelf', 23.45, z, 90);
   // Meal preparation
   E('prepTable', 15.4, 5.3, 0); E('prepTable', 18.6, 5.3, 0);
   for (const x of [14.9, 16.2, 17.5, 18.8]) E('shelf', x, 8.6, 0);
